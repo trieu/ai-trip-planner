@@ -30,6 +30,8 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from openinference.instrumentation.langchain import LangChainInstrumentor
 from openinference.instrumentation import using_prompt_template, using_attributes
 
+from services.data_service import DataServiceFactory
+
 load_dotenv(find_dotenv())
 
 # --- Observability Setup ---
@@ -53,6 +55,7 @@ class TripState(TypedDict):
     # Annotated with operator.add to append messages rather than overwrite
     messages: Annotated[List[BaseMessage], operator.add]
     trip_request: Dict[str, Any]
+    user_profile: Dict[str, Any]  # user profile from database or CDP / CRM
     research: Optional[str]
     budget: Optional[str]
     local: Optional[str]
@@ -103,6 +106,20 @@ def get_costs(destination: str, budget_level: str) -> str:
     return _search_or_fallback(f"{destination} travel costs {budget_level}", f"Estimated costs for {budget_level} travel in {destination}.")
 
 # --- Agent Nodes ---
+
+profile_service = DataServiceFactory.get_service()
+
+def profile_node(state: TripState) -> Dict[str, Any]:
+    """Retrieves user data before agents start processing."""
+    user_id = state["trip_request"].get("user_id")
+    profile = {}
+    
+    if user_id:
+        with using_attributes(service="DataService", action="load_profile"):
+            profile = profile_service.get_user_profile(user_id)
+            
+    return {"user_profile": profile}
+
 def research_node(state: TripState):
     dest = state["trip_request"]["destination"]
     agent = llm.bind_tools([get_destination_info])
@@ -156,14 +173,18 @@ def itinerary_node(state: TripState):
 # --- Graph Construction ---
 def create_planner_graph():
     builder = StateGraph(TripState)
+    builder.add_node("load_profile", profile_node)
     builder.add_node("research", research_node)
     builder.add_node("budget", budget_node)
     builder.add_node("itinerary", itinerary_node)
-    
-    # Parallel execution
-    builder.add_edge(START, "research")
-    builder.add_edge(START, "budget")
-    
+
+    # 2. Wire the flow
+    builder.add_edge(START, "load_profile")
+
+    # After profile is loaded, run parallel research & budget
+    builder.add_edge("load_profile", "research")
+    builder.add_edge("load_profile", "budget")
+      
     # Join at itinerary
     builder.add_edge("research", "itinerary")
     builder.add_edge("budget", "itinerary")
