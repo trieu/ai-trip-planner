@@ -30,7 +30,8 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from openinference.instrumentation.langchain import LangChainInstrumentor
 from openinference.instrumentation import using_prompt_template, using_attributes
 
-from services.data_service import DataServiceFactory
+# Data Service to load user profile
+from services import DataServiceFactory
 
 load_dotenv(find_dotenv())
 
@@ -104,11 +105,11 @@ def get_destination_info(destination: str) -> str:
 def get_costs(destination: str, budget_level: str) -> str:
     """Get average costs for food, transport, and lodging."""
     return _search_or_fallback(f"{destination} travel costs {budget_level}", f"Estimated costs for {budget_level} travel in {destination}.")
-
-# --- Agent Nodes ---
+# --- Data Services ---
 
 profile_service = DataServiceFactory.get_service()
 
+# --- Agent Nodes ---
 def profile_node(state: TripState) -> Dict[str, Any]:
     """Retrieves user data before agents start processing."""
     user_id = state["trip_request"].get("user_id")
