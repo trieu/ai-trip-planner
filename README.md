@@ -15,6 +15,9 @@ This system demonstrates how to build "Privacy-First" personalized AI by integra
 
 ## 🏗️ System Architecture
 
+![Project Flow](project-flow.png)
+
+
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        User Request                             │
