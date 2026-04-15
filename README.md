@@ -65,9 +65,11 @@ This system demonstrates how to build "Privacy-First" personalized AI by integra
 
 ---
 
+## 🛠️ Quickstart with Google Colab 
 
+https://colab.research.google.com/drive/1KaLKUzFPC7uECGAHDZ7xW1LzjbdpiqQO?usp=sharing
 
-## 🛠️ Quickstart
+## 🛠️ Quickstart with local python code
 
 ### 1. Requirements
 - Python 3.10+
