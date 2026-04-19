@@ -80,25 +80,16 @@ https://colab.research.google.com/drive/1KaLKUzFPC7uECGAHDZ7xW1LzjbdpiqQO?usp=sh
 - **PostgreSQL 16** (optional, for profile storage)
 
 ### 2. Configure Environment
-Create a `.env` file in the `backend/` directory:
-```bash
-# LLM Config
-GOOGLE_API_KEY=your_gemini_key
-
-# Profile Source: LEO_CDP or POSTGRES
-PROFILE_SOURCE=LEO_CDP
-LEO_API_KEY=your_leo_key
-LEO_BASE_URL=https://api.leocdp.com
-
-# Observability
-PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
-```
+Create a `.env` file by coping `sample.env` in the `backend/` directory:
 
 ### 3. Installation
-Using `uv` for 10x faster setup:
+
 ```bash
 cd backend
-uv pip install -r requirements.txt
+python -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
 ### 4. Terminal 1: Start Phoenix for Tracing

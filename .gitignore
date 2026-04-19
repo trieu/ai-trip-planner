@@ -92,3 +92,4 @@ test scripts/*.json
 backend/archive/ 
 
 backend/__pycache__
+backend/.env
