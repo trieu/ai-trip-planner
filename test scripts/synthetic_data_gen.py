@@ -90,7 +90,7 @@ def scenarios_bad_tool_calls() -> List[Dict[str, Any]]:
                 "get_destination_weather",
                 "find_local_restaurants",
             ],
-            "wrong_tools": ["create_daily_schedule"],  # itinerary tools at this stage are premature
+            "wrong_tools": ["create_daily_schedule"],  # journey_plan tools at this stage are premature
         },
         {
             "name": "Hidden Gems Request But Uses Food Cost",

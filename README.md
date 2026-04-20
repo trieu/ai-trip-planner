@@ -135,7 +135,7 @@ docker-compose up --build
 - Synthetic evals: `python "test scripts"/synthetic_data_gen.py --base-url http://localhost:8000 --count 12`
 
 ## API
-- POST `/plan-trip` → returns a generated itinerary.
+- POST `/plan-trip` → returns a generated journey plan.
   Example body:
   ```json
   {"destination":"Tokyo, Japan","duration":"7 days","budget":"$2000","interests":"food, culture"}

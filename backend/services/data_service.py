@@ -52,7 +52,7 @@ class MockProfileService(BaseProfileService):
     def _generate_profile(self, user_id: str) -> Dict[str, Any]:
         persona = self.rng.choice(self.personas)
 
-        last_seen = datetime.utcnow() - timedelta(days=self.rng.randint(0, 30))
+        last_seen = datetime.now() - timedelta(days=self.rng.randint(0, 30))
         created_at = last_seen - timedelta(days=self.rng.randint(30, 365))
 
         return {
@@ -69,7 +69,7 @@ class MockProfileService(BaseProfileService):
                 "avg_order_value": persona["avg_order_value"],
                 "lifetime_value": persona["lifetime_value"],
                 "purchase_count": self.rng.randint(1, 50),
-                "last_seen_days_ago": (datetime.utcnow() - last_seen).days,
+                "last_seen_days_ago": (datetime.now() - last_seen).days,
             },
             "timestamps": {
                 "created_at": created_at.isoformat(),
@@ -80,6 +80,7 @@ class MockProfileService(BaseProfileService):
                 "sms": self.rng.choice([True, False]),
                 "ads": True,
             },
+            "language": "Vietnamese"
         }
 
     def get_user_profile(self, user_id: str) -> Dict[str, Any]:

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,13 +9,76 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Better markdown rendering */
+    .prose {
+      max-width: 100%;
+    }
+
+    .prose h1,
+    .prose h2,
+    .prose h3 {
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .prose h1 {
+      font-size: 1.6rem;
+      margin-top: 1.2em;
+    }
+
+    .prose h2 {
+      font-size: 1.3rem;
+      margin-top: 1.2em;
+      border-bottom: 1px solid #e5e5e5;
+      padding-bottom: 0.3em;
+    }
+
+    .prose h3 {
+      font-size: 1.1rem;
+      margin-top: 1em;
+    }
+
+    .prose p {
+      line-height: 1.7;
+      color: #404040;
+    }
+
+    .prose ul {
+      padding-left: 1.2em;
+    }
+
+    .prose li {
+      margin-bottom: 0.4em;
+    }
+
+    /* Highlight Day sections */
+    .prose h2:has(+ p) {
+      background: #fafafa;
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+
+    /* Card hover */
+    .result-card {
+      transition: all 0.2s ease;
+    }
+
+    .result-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+    }
+  </style>
 </head>
+
 <body class="bg-neutral-50 text-neutral-900 antialiased font-[Inter]">
   <!-- Nav -->
   <header class="border-b border-neutral-200 bg-white/80 backdrop-blur">
     <div class="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-indigo-600 via-violet-600 to-fuchsia-600 text-white">
+        <span
+          class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-indigo-600 via-violet-600 to-fuchsia-600 text-white">
           <i data-lucide="compass" class="h-5 w-5"></i>
         </span>
         <span class="text-lg font-semibold tracking-tight">Trip Planner</span>
@@ -24,10 +88,11 @@
 
   <!-- Hero -->
   <section class="mx-auto max-w-7xl px-6 pt-10 pb-8">
-    <div class="relative overflow-hidden rounded-2xl border border-neutral-200 bg-gradient-to-tr from-indigo-600 via-violet-600 to-fuchsia-600">
+    <div
+      class="relative overflow-hidden rounded-2xl border border-neutral-200 bg-gradient-to-tr from-indigo-600 via-violet-600 to-fuchsia-600">
       <div class="absolute inset-0 opacity-20">
         <img alt="Mountain landscape" class="h-full w-full object-cover"
-             src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2000&auto=format&fit=crop" />
+          src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2000&auto=format&fit=crop" />
       </div>
       <div class="relative grid gap-6 p-8 md:grid-cols-3 md:p-12">
         <div class="md:col-span-2">
@@ -35,7 +100,7 @@
             Plan Your Perfect Trip
           </h1>
           <p class="mt-3 text-indigo-100/90 text-base md:text-lg">
-            Discover destinations, craft smart budgets, and get a personalized day-by-day itinerary in seconds.
+            Discover destinations, craft smart budgets, and get a personalized day-by-day journey plan in seconds.
           </p>
           <div class="mt-6 flex flex-wrap items-center gap-3">
             <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-white text-sm">
@@ -55,8 +120,9 @@
         <div class="hidden md:block">
           <div class="relative h-full w-full rounded-xl bg-white/10 p-4 ring-1 ring-white/20 backdrop-blur">
             <img alt="City minimal render" class="h-full w-full rounded-lg object-cover"
-                 src="https://images.unsplash.com/photo-1521295121783-8a321d551ad2?q=80&w=1600&auto=format&fit=crop" />
-            <div class="absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-black/30 px-3 py-1.5 text-white text-xs">
+              src="https://images.unsplash.com/photo-1521295121783-8a321d551ad2?q=80&w=1600&auto=format&fit=crop" />
+            <div
+              class="absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-black/30 px-3 py-1.5 text-white text-xs">
               <i data-lucide="camera" class="h-3.5 w-3.5"></i> Inspiration
             </div>
           </div>
@@ -127,7 +193,7 @@
             <label for="destination" class="block text-sm font-medium text-neutral-800">Destination</label>
             <div class="mt-2 relative">
               <input id="destination" type="text" required placeholder="e.g., Kyoto, Japan"
-                     class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none ring-0 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200" />
+                class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none ring-0 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200" />
               <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">
                 <i data-lucide="map-pin" class="h-4.5 w-4.5"></i>
               </span>
@@ -138,8 +204,9 @@
           <div>
             <label for="duration" class="block text-sm font-medium text-neutral-800">Duration (days)</label>
             <div class="mt-2 relative">
-              <input id="duration" type="number" inputmode="numeric" min="1" max="30" step="1" required placeholder="e.g., 5"
-                     class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none ring-0 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200" />
+              <input id="duration" type="number" inputmode="numeric" min="1" max="30" step="1" required
+                placeholder="e.g., 5"
+                class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none ring-0 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200" />
               <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">
                 <i data-lucide="calendar" class="h-4.5 w-4.5"></i>
               </span>
@@ -151,26 +218,30 @@
             <label class="block text-sm font-medium text-neutral-800">Budget</label>
             <input id="budgetValue" type="hidden" value="moderate" />
             <button id="budgetBtn" type="button"
-                    class="mt-2 w-full inline-flex items-center justify-between rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-left text-neutral-900 shadow-sm hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-200">
+              class="mt-2 w-full inline-flex items-center justify-between rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-left text-neutral-900 shadow-sm hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-200">
               <span id="budgetLabel">Moderate</span>
               <i data-lucide="chevron-down" class="h-4.5 w-4.5 text-neutral-500"></i>
             </button>
-            <div id="budgetMenu" class="absolute z-20 mt-2 hidden w-full overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg">
-              <button data-value="budget" class="flex w-full items-center justify-between px-3.5 py-2.5 text-sm hover:bg-neutral-50">
+            <div id="budgetMenu"
+              class="absolute z-20 mt-2 hidden w-full overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg">
+              <button data-value="budget"
+                class="flex w-full items-center justify-between px-3.5 py-2.5 text-sm hover:bg-neutral-50">
                 <span class="flex items-center gap-2">
                   <i data-lucide="piggy-bank" class="h-4 w-4 text-neutral-500"></i>
                   Budget
                 </span>
                 <span class="text-neutral-500 text-xs">Save more</span>
               </button>
-              <button data-value="moderate" class="flex w-full items-center justify-between px-3.5 py-2.5 text-sm hover:bg-neutral-50">
+              <button data-value="moderate"
+                class="flex w-full items-center justify-between px-3.5 py-2.5 text-sm hover:bg-neutral-50">
                 <span class="flex items-center gap-2">
                   <i data-lucide="wallet" class="h-4 w-4 text-neutral-500"></i>
                   Moderate
                 </span>
                 <span class="text-neutral-500 text-xs">Balanced</span>
               </button>
-              <button data-value="luxury" class="flex w-full items-center justify-between px-3.5 py-2.5 text-sm hover:bg-neutral-50">
+              <button data-value="luxury"
+                class="flex w-full items-center justify-between px-3.5 py-2.5 text-sm hover:bg-neutral-50">
                 <span class="flex items-center gap-2">
                   <i data-lucide="gem" class="h-4 w-4 text-neutral-500"></i>
                   Luxury
@@ -185,7 +256,7 @@
             <label for="interests" class="block text-sm font-medium text-neutral-800">Interests</label>
             <div class="mt-2 relative">
               <input id="interests" type="text" placeholder="e.g., food, culture, museums, nightlife"
-                     class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none ring-0 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200" />
+                class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none ring-0 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200" />
               <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">
                 <i data-lucide="sparkles" class="h-4.5 w-4.5"></i>
               </span>
@@ -195,7 +266,7 @@
           <!-- Submit -->
           <div class="pt-2">
             <button type="submit"
-                    class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-neutral-900 px-4 py-3 text-white shadow-sm transition hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-300">
+              class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-neutral-900 px-4 py-3 text-white shadow-sm transition hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-300">
               <i data-lucide="route" class="h-5 w-5"></i>
               <span class="font-medium">Plan My Trip</span>
             </button>
@@ -206,8 +277,9 @@
       <!-- Output -->
       <section class="lg:col-span-2 space-y-6">
         <div id="placeholderCard" class="rounded-xl border border-neutral-200 bg-white p-8 text-center shadow-sm">
-          <h3 class="text-xl md:text-2xl font-semibold tracking-tight">Fill out the form to get your personalized trip plan</h3>
-          <p class="mt-2 text-neutral-600">Enter your details on the left—your itinerary will appear here.</p>
+          <h3 class="text-xl md:text-2xl font-semibold tracking-tight">Fill out the form to get your personalized trip
+            plan</h3>
+          <p class="mt-2 text-neutral-600">Enter your details on the left—your journey plan will appear here.</p>
           <div class="mt-6 grid gap-3 sm:grid-cols-3">
             <div class="rounded-lg border border-neutral-200 p-4">
               <div class="flex items-center gap-2 text-neutral-700">
@@ -293,6 +365,7 @@
     const results = document.getElementById('results');
     const placeholderCard = document.getElementById('placeholderCard');
 
+
     async function submitToBackend(e) {
       e.preventDefault();
 
@@ -307,59 +380,137 @@
         return;
       }
 
+      const BASE_URL = "http://localhost:8000"
+      const payload = {
+        destination,
+        duration,
+        budget,
+        interests,
+        user_id: "demo_user_001",
+        session_id: "web_debug_session"
+      };
+
+      console.group("🚀 API REQUEST");
+      console.log("Endpoint:", BASE_URL + "/plan-trip");
+      console.log("Payload:", payload);
+
+      const start = performance.now();
+
       placeholderCard.classList.add('hidden');
       results.classList.remove('hidden');
       results.innerHTML = `
-        <div class="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
-          <div class="flex items-center gap-3 text-neutral-700">
-            <i data-lucide="loader-2" class="h-5 w-5 animate-spin"></i>
-            Planning your itinerary...
-          </div>
-        </div>
-      `;
+    <div class="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center gap-3 text-neutral-700">
+        <i data-lucide="loader-2" class="h-5 w-5 animate-spin"></i>
+        Planning your journey_plan...
+      </div>
+    </div>
+  `;
       renderIcons();
 
       try {
-        const resp = await fetch('/plan-trip', {
+        const resp = await fetch(BASE_URL + '/plan-trip', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ destination, duration, budget, interests })
+          body: JSON.stringify(payload)
         });
 
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        const md = (data && data.result) ? data.result : 'No result';
+        const end = performance.now();
 
-        const content = (window.marked && window.marked.parse) ? window.marked.parse(md) : `<pre class="whitespace-pre-wrap">${md}</pre>`;
+        console.log("⏱ Duration:", (end - start).toFixed(2), "ms");
+        console.log("📡 Status:", resp.status);
+
+        const rawText = await resp.text();
+
+        console.log("📦 Raw Response:", rawText);
+
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch (e) {
+          console.error("❌ JSON Parse Error:", e);
+          throw new Error("Invalid JSON response");
+        }
+
+        console.log("✅ Parsed Response:", data);
+        console.groupEnd();
+
+        if (!resp.ok) {
+          throw new Error(data?.detail || `HTTP ${resp.status}`);
+        }
+
+        const md = data?.result || "No result returned";
+
+        const content = (window.marked && window.marked.parse)
+          ? window.marked.parse(md)
+          : `<pre class="whitespace-pre-wrap">${md}</pre>`;
+
         results.innerHTML = `
-          <div class="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
-            <div class="mb-3 flex items-center justify-between">
-              <h3 class="text-xl font-semibold tracking-tight">Your Itinerary</h3>
-              <button id="printBtn" class="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50">
-                <i data-lucide="printer" class="h-4 w-4"></i> Print / PDF
-              </button>
+          <div class="space-y-4">
+
+            <!-- Header -->
+            <div class="sticky top-4 z-10 backdrop-blur bg-white/80 border border-neutral-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
+              <div>
+                <h3 class="text-xl font-semibold tracking-tight">Your Itinerary</h3>
+                <p class="text-sm text-neutral-500">AI-generated travel plan</p>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <button id="copyBtn"
+                  class="inline-flex items-center gap-2 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+                  📋 Copy
+                </button>
+
+                <button id="printBtn"
+                  class="inline-flex items-center gap-2 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+                  🖨 Print
+                </button>
+              </div>
             </div>
-            <div class="prose max-w-none">${content}</div>
+
+            <!-- Content -->
+            <div class="result-card rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+              <div class="prose prose-neutral max-w-none text-[15px] leading-relaxed">
+                ${content}
+              </div>
+            </div>
+
           </div>
         `;
+
         renderIcons();
-        const printBtn = document.getElementById('printBtn');
-        printBtn?.addEventListener('click', () => window.print());
+
+        document.getElementById('printBtn')?.addEventListener('click', () => window.print());
+
+        document.getElementById('copyBtn')?.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(md);
+            console.log("✅ Copied itinerary");
+          } catch (e) {
+            console.error("❌ Copy failed", e);
+          }
+        });
+
       } catch (err) {
+        console.groupEnd();
+        console.error("🔥 API ERROR:", err);
+
         results.innerHTML = `
-          <div class="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
-            <div class="flex items-center gap-2">
-              <i data-lucide="alert-triangle" class="h-5 w-5"></i>
-              <span>Failed to plan trip. Please try again.</span>
-            </div>
-          </div>
-        `;
+      <div class="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
+        <div class="flex items-center gap-2">
+          <i data-lucide="alert-triangle" class="h-5 w-5"></i>
+          <span>${err.message}</span>
+        </div>
+      </div>
+    `;
+
         renderIcons();
-        console.error('Plan error:', err);
       }
     }
+
 
     form.addEventListener('submit', submitToBackend);
   </script>
 </body>
+
 </html>

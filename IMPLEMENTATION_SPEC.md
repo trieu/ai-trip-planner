@@ -43,19 +43,19 @@ def build_graph():
     g.add_node("research", research_agent)
     g.add_node("budget", budget_agent)
     g.add_node("local", local_agent)
-    g.add_node("itinerary", itinerary_agent)
+    g.add_node("journey_plan", journey_plan_agent)
 
     # Run research, budget, and local agents in parallel
     g.add_edge(START, "research")
     g.add_edge(START, "budget")
     g.add_edge(START, "local")
     
-    # All three agents feed into the itinerary agent
-    g.add_edge("research", "itinerary")
-    g.add_edge("budget", "itinerary")
-    g.add_edge("local", "itinerary")
+    # All three agents feed into the journey_plan agent
+    g.add_edge("research", "journey_plan")
+    g.add_edge("budget", "journey_plan")
+    g.add_edge("local", "journey_plan")
     
-    g.add_edge("itinerary", END)
+    g.add_edge("journey_plan", END)
 
     # Compile without checkpointer to avoid state persistence issues
     return g.compile()
@@ -210,9 +210,9 @@ Use the provided `generate_itineraries.py` script to run comprehensive tests wit
 ### Expected Trace Pattern
 Each successful request should show:
 1. Three parallel agent executions (Research, Budget, Local)
-2. One sequential itinerary agent execution
+2. One sequential journey_plan agent execution
 3. Various tool calls within each agent
-4. Clear convergence at the itinerary synthesis stage
+4. Clear convergence at the journey_plan synthesis stage
 
 ## Deployment Notes
 
@@ -236,7 +236,7 @@ uvicorn main:app --reload --port 8001
 1. **Caching Layer**: Add Redis caching for common destinations
 2. **Agent Specialization**: Further specialize agents for specific travel styles
 3. **Dynamic Agent Selection**: Choose which agents to run based on user inputs
-4. **Streaming Responses**: Implement streaming for real-time itinerary generation
+4. **Streaming Responses**: Implement streaming for real-time journey_plan generation
 5. **Error Recovery**: Add retry logic for failed agent executions
 
 ### Scalability Considerations
@@ -273,7 +273,7 @@ uvicorn main:app --reload --port 8001
 ### Main Components
 - `main.py`: Core application with FastAPI endpoints and agent definitions
 - `TripState`: TypedDict managing state across agents
-- Agent functions: `research_agent()`, `budget_agent()`, `local_agent()`, `itinerary_agent()`
+- Agent functions: `research_agent()`, `budget_agent()`, `local_agent()`, `journey_plan_agent()`
 - Graph builder: `build_graph()` - Orchestrates agent execution flow
 
 ### State Management
