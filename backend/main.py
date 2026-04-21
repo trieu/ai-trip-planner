@@ -1,77 +1,23 @@
 import os
-import json
-import operator
-from pathlib import Path
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from dotenv import load_dotenv, find_dotenv
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from dotenv import load_dotenv, find_dotenv
-import httpx
 
-# LangChain / LangGraph imports
-from langgraph.graph import StateGraph, END, START
-from langgraph.prebuilt import ToolNode
-from typing_extensions import TypedDict, Annotated
-from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
-from langchain_core.tools import tool
-from langchain_core.documents import Document
-from langchain_community.vectorstores import InMemoryVectorStore
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from smart_trip_planner import SmartTripPlanner, safe_attributes
 
-# OpenTelemetry / Phoenix Observability
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from openinference.instrumentation.langchain import LangChainInstrumentor
-from openinference.instrumentation import using_prompt_template, using_attributes
-
-# Data Service to load user profile
-from services import DataServiceFactory
-
+# ================================
+# Environment Setup
+# ================================
 load_dotenv(find_dotenv(), override=True)
 
-# --- Observability Setup ---
-# Phoenix local OTLP collector typically listens on port 6006
-endpoint = os.getenv("PHOENIX_COLLECTOR_ENDPOINT",
-                     "http://localhost:6006/v1/traces")
-tracer_provider = TracerProvider()
-tracer_provider.add_span_processor(
-    BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
-trace.set_tracer_provider(tracer_provider)
-LangChainInstrumentor().instrument()
-
-# --- LLM & Embedding Init ---
-
-
-def get_llm():
-    return ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite", temperature=0.7)
-
-
-llm = get_llm()
-embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
-ENABLE_RAG = os.getenv("ENABLE_RAG", "0").lower() in {"1", "true", "yes"}
-
-# --- State & Data Models ---
-
-
-class TripState(TypedDict):
-    # Annotated with operator.add to append messages rather than overwrite
-    messages: Annotated[List[BaseMessage], operator.add]
-    trip_request: Dict[str, Any]
-    user_profile: Dict[str, Any]  # user profile from database or CDP / CRM
-    research: Optional[str]
-    budget: Optional[str]
-    local: Optional[str]
-    final: Optional[str]
-    tool_calls: Annotated[List[Dict[str, Any]], operator.add]
-
-
+# ================================
+# Data Models (Pydantic)
+# ================================
 class TripRequest(BaseModel):
+    """Schema for incoming trip planning requests."""
     destination: str
     duration: str
     budget: Optional[str] = "moderate"
@@ -82,276 +28,57 @@ class TripRequest(BaseModel):
     user_id: Optional[str] = None
     turn_index: Optional[int] = 0
 
-
 class TripResponse(BaseModel):
+    """Schema for successful trip plan responses."""
     result: str
     tool_calls: List[Dict[str, Any]] = []
 
 # ================================
-# Observability Safe Wrapper
+# Application Initialization
 # ================================
+app = FastAPI(title="Gemini Trip Planner API", version="1.0.0")
 
+# Configure CORS for frontend access
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=["*"], 
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
 
-def safe_attributes(attrs: Dict[str, Any]):
-    """
-    Prevent observability layer from breaking runtime.
-    If using_attributes fails → fallback to no-op.
-    """
-    try:
-        return using_attributes(attributes=attrs)
-    except Exception:
-        from contextlib import nullcontext
-        return nullcontext()
+# Instantiate the engine globally so the graph is only compiled once
+planner = SmartTripPlanner()
 
-# --- Tool Helpers ---
-
-
-def _search_or_fallback(query: str, instruction: str) -> str:
-    """Try Tavily → fallback to LLM (NO silent failure)."""
-    tavily_key = os.getenv("TAVILY_API_KEY")
-
-    if tavily_key:
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                resp = client.post(
-                    "https://api.tavily.com/search",
-                    json={
-                        "api_key": tavily_key,
-                        "query": query,
-                        "max_results": 2,
-                        "include_answer": True,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-
-                if data.get("answer"):
-                    return data["answer"]
-
-                if data.get("results"):
-                    return data["results"][0].get("content", "")
-
-        except Exception as e:
-            # fallback to LLM
-            pass
-
-    # LLM fallback
-    res = llm.invoke([
-        SystemMessage(content="Concise guide."),
-        HumanMessage(content=instruction)
-    ])
-    return res.content
-
-
-@tool
-def get_destination_info(destination: str) -> str:
-    """Get weather, safety, and visa info for a destination."""
-    return _search_or_fallback(f"{destination} travel info", f"Summarize travel essentials for {destination}.")
-
-
-@tool
-def get_costs(destination: str, budget_level: str) -> str:
-    """Get average costs for food, transport, and lodging."""
-    return _search_or_fallback(f"{destination} travel costs {budget_level}", f"Estimated costs for {budget_level} travel in {destination}.")
-# --- Data Services ---
-
-
-profile_service = DataServiceFactory.get_service()
-
-# --- Agent Nodes ---
-
-
-def profile_node(state: TripState) -> Dict[str, Any]:
-    user_id = state["trip_request"].get("user_id")
-    profile = {}
-
-    if user_id:
-        with safe_attributes({
-            "service.name": "DataService",
-            "operation": "load_profile",
-            "user.id": user_id
-        }):
-            profile = profile_service.get_user_profile(user_id)
-
-    return {"user_profile": profile or {}}
-
-
-def research_node(state: TripState):
-    dest = state["trip_request"]["destination"]
-    agent = llm.bind_tools([get_destination_info])
-
-    with safe_attributes({"agent.type": "research"}):
-        res = agent.invoke([
-            SystemMessage(content=f"""
-            You are a travel research agent.
-
-            Rules:
-            - DO NOT ask user questions
-            - DO NOT request missing info
-            - ALWAYS produce a complete answer
-
-            Task:
-            Provide travel info for {dest}
-            """),
-            HumanMessage(content="Execute task.")
-        ])
-
-    calls = []
-    summary = res.content
-
-    # SAFE tool execution
-    if getattr(res, "tool_calls", None):
-        try:
-            tn = ToolNode([get_destination_info])
-            tool_res = tn.invoke({"messages": [res]})
-            summary = tool_res["messages"][-1].content
-            calls.append({
-                "tool": "get_destination_info",
-                "args": {"destination": dest}
-            })
-        except Exception:
-            pass
-
-    return {
-        "research": summary,
-        "tool_calls": calls
-    }
-
-
-def budget_node(state: TripState):
-    dest = state["trip_request"]["destination"]
-    lvl = state["trip_request"]["budget"]
-    agent = llm.bind_tools([get_costs])
-
-    with safe_attributes({"agent.type": "budget"}):
-        res = agent.invoke([
-            SystemMessage(content=f"""
-            You are a travel cost analyst.
-
-            Rules:
-            - DO NOT ask questions
-            - ALWAYS estimate even if uncertain
-
-            Task:
-            Estimate travel costs for {dest} with budget level {lvl}
-            """),
-            HumanMessage(content="Execute task.")
-        ])
-
-    calls = []
-    summary = res.content
-
-    if getattr(res, "tool_calls", None):
-        try:
-            tn = ToolNode([get_costs])
-            tool_res = tn.invoke({"messages": [res]})
-            summary = tool_res["messages"][-1].content
-            calls.append({
-                "tool": "get_costs",
-                "args": {
-                    "destination": dest,
-                    "budget_level": lvl
-                }
-            })
-        except Exception:
-            pass
-
-    return {
-        "budget": summary,
-        "tool_calls": calls
-    }
-
-
-def journey_plan_node(state: TripState):
-    """
-    Final synthesis node.
-    NOTE: This is where personalization using user_profile should happen.
-    """
-
-    prompt = f"""
-    You are an expert travel planner.
-    
-    STRICT RULES:
-    - DO NOT ask the user any questions
-    - DO NOT request missing information
-    - ALWAYS generate a complete itinerary
-    
-    INPUT:
-    - Destination: {state['trip_request']['destination']}
-    - Duration: {state['trip_request']['duration']}
-    - Budget: {state['trip_request']['budget']}
-    - Research: {state.get('research')}
-    - Cost: {state.get('budget')}
-    - User Profile: {state.get('user_profile')}
-    - User Language: {state.get('user_profile').get('language', 'English')}
-
-
-    OUTPUT: Generate a full detailed day-by-day itinerary.
-
-    """
-
-    with safe_attributes({"agent.type": "journey_plan"}):
-        res = llm.invoke([
-            SystemMessage(content="You are a professional travel planner."),
-            HumanMessage(content=prompt)
-        ])
-
-    return {"final": res.content}
-
-# --- Graph Construction ---
-
-
-def create_planner_graph():
-    builder = StateGraph(TripState)
-    builder.add_node("load_profile", profile_node)
-    builder.add_node("research", research_node)
-    builder.add_node("budget", budget_node)
-    builder.add_node("journey_plan", journey_plan_node)
-
-    # 2. Wire the flow
-    builder.add_edge(START, "load_profile")
-
-    # After profile is loaded, run parallel research & budget
-    builder.add_edge("load_profile", "research")
-    builder.add_edge("load_profile", "budget")
-
-    # Join at journey_plan
-    builder.add_edge("research", "journey_plan")
-    builder.add_edge("budget", "journey_plan")
-    builder.add_edge("journey_plan", END)
-
-    return builder.compile()
-
-
-# Compile graph once at startup
-planner_app = create_planner_graph()
-
-# --- FastAPI Server ---
-app = FastAPI(title="Gemini Trip Planner")
-app.add_middleware(CORSMiddleware, allow_origins=[
-                   "*"], allow_methods=["*"], allow_headers=["*"])
-
-
+# ================================
+# API Routes
+# ================================
 @app.post("/plan-trip", response_model=TripResponse)
 async def plan_trip(req: TripRequest):
-
+    """
+    Endpoint to generate a personalized trip itinerary.
+    Triggers the LangGraph workflow via SmartTripPlanner.
+    """
+    
+    # Setup the initial state for LangGraph
     initial_state = {
         "messages": [],
         "trip_request": req.model_dump(),
         "tool_calls": [],
-        "user_profile": {},   # ensure exists
+        "user_profile": {},
     }
 
+    # Execute with telemetry wrappers
     with safe_attributes({
         "session.id": req.session_id or "default",
         "user.id": req.user_id or "anonymous",
         "endpoint": "/plan-trip"
     }):
         try:
-            result = planner_app.invoke(initial_state)
+            # Trigger the AI graph
+            result = planner.invoke(initial_state)
 
             return TripResponse(
-                result=result.get("final", "Failed to generate journey_plan."),
+                result=result.get("final", "Failed to generate journey plan."),
                 tool_calls=result.get("tool_calls", [])
             )
 
@@ -360,4 +87,5 @@ async def plan_trip(req: TripRequest):
 
 if __name__ == "__main__":
     import uvicorn
+    # Start the server on port 8000
     uvicorn.run(app, host="0.0.0.0", port=8000)
