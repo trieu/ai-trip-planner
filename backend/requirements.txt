@@ -1,4 +1,5 @@
 fastapi
+PyJWT
 uvicorn[standard]
 pydantic>=2.7.4
 python-dotenv
@@ -9,6 +10,7 @@ langchain
 langchain-community
 langgraph
 langchain-google-genai
+langchain-openai
 
 opentelemetry-api
 opentelemetry-sdk

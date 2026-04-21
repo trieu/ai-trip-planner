@@ -4,6 +4,8 @@ from dotenv import load_dotenv, find_dotenv
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse  # Added for serving files
+from fastapi.staticfiles import StaticFiles # Added for serving directory assets
 from pydantic import BaseModel
 
 from smart_trip_planner import SmartTripPlanner, safe_attributes
@@ -12,6 +14,9 @@ from smart_trip_planner import SmartTripPlanner, safe_attributes
 # Environment Setup
 # ================================
 load_dotenv(find_dotenv(), override=True)
+
+# Define the frontend directory from environment variables or default to "frontend"
+FRONTEND_DIR = os.getenv("FRONTEND_DIR", "../frontend")
 
 # ================================
 # Data Models (Pydantic)
@@ -46,12 +51,32 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# Mount the static directory to serve CSS, JS, and Images
+# This makes files in FRONTEND_DIR accessible at /assets/*
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIR), name="assets")
+
 # Instantiate the engine globally so the graph is only compiled once
 planner = SmartTripPlanner()
 
 # ================================
 # API Routes
 # ================================
+
+@app.get("/")
+@app.get("/index.html")
+async def serve_index():
+    """
+    Returns the static index.html from the configured frontend folder.
+    """
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    
+    if not os.path.exists(index_path):
+        # Fallback message if the file is missing
+        return {"message": "Frontend index.html not found. Check FRONTEND_DIR config."}
+        
+    return FileResponse(index_path)
+
 @app.post("/plan-trip", response_model=TripResponse)
 async def plan_trip(req: TripRequest):
     """
@@ -88,4 +113,6 @@ async def plan_trip(req: TripRequest):
 if __name__ == "__main__":
     import uvicorn
     # Start the server on port 8000
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    HOST = os.getenv("HOST", "0.0.0.0")
+    PORT = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host=HOST, port=PORT)

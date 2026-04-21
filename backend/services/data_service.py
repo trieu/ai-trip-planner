@@ -48,6 +48,9 @@ class MockProfileService(BaseProfileService):
 
         self.cities = ["Ho Chi Minh City", "Hanoi", "Da Nang", "Can Tho"]
         self.channels = ["facebook", "google", "email", "organic"]
+        self.interests_pool = [
+            "beach", "mountains", "culture", "food", "adventure", "relaxation", "nightlife", "history"
+        ]
 
     def _generate_profile(self, user_id: str) -> Dict[str, Any]:
         persona = self.rng.choice(self.personas)
@@ -80,6 +83,8 @@ class MockProfileService(BaseProfileService):
                 "sms": self.rng.choice([True, False]),
                 "ads": True,
             },
+            "personal_interests" : self.rng.sample(self.interests_pool, k=3),
+            
             "language": "Vietnamese"
         }
 

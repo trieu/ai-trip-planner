@@ -112,7 +112,7 @@ cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - Frontend: http://localhost:3000
 - API: http://localhost:8000
 - Docs: http://localhost:8000/docs
- - Minimal UI: http://localhost:8000/
+- Minimal UI: http://localhost:8000/
 
 Docker (optional)
 ```bash
