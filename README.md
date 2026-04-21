@@ -1,15 +1,19 @@
 # ✈️ AI-Native Trip Planner (Multi-Agent)
 
-A **production-grade multi-agent orchestrator** built with Gemini 2.0 Flash and LangGraph. 
+A **production-grade multi-agent orchestrator** built with Google Gemini / Open AI  and LangGraph. 
 This system demonstrates how to build "Privacy-First" personalized AI by integrating a **Customer Data Platform (LEO CDP)** and **PostgreSQL 16** into a parallel-processing agentic workflow.
+
+![UI screenshot](screenshot.png)
 
 ## 🌟 Core Architecture Patterns
 
-- 🤖 **Parallel Agent Orchestration**: Uses **LangGraph** to fan-out Research, Budget, and Local agents simultaneously for low-latency responses.
-- 📂 **OOP Data Service**: A decoupled Strategy-pattern factory to load user profiles from **LEO CDP**, **PostgreSQL 16**, or any CRM.
-- ⚡ **Gemini 2.0 Flash**: Optimized for speed and "native tool-use" capabilities.
-- 👁️ **Local Observability**: Full OTLP tracing with **Arize Phoenix** for real-time debugging of agent logic and tool calls.
-- 🛡️ **Graceful Degradation**: Intelligent fallbacks for web search (Tavily/SerpAPI) to ensure the system never fails silently.
+- 🤖 **Parallel Agent Orchestration**: Powered by **LangGraph**, the system utilizes a state-machine DAG to "fan-out" Research and Budget agents simultaneously. This parallel execution reduces end-to-end latency and synthesizes multi-source data into a cohesive journey plan.
+- 🔗 **Provider-Agnostic MetaLLM**: A specialized factory layer that decouples the application from specific AI providers. Seamlessly toggle between **Google Gemini** and **OpenAI** via environment configuration without changing a single line of business logic.
+- 📂 **OOP Data Strategy**: Implements a decoupled **Strategy Pattern** for identity resolution. The `DataServiceFactory` allows the system to pull rich user profiles and preferences from **LEO CDP**, **PostgreSQL 16**, or local mock data for testing.
+- 🧠 **Vector-Augmented RAG**: (Optional) High-precision local recommendations using **Retrieval-Augmented Generation**. Curated local guides are indexed into an in-memory vector store using `text-embedding-004`, allowing for semantic retrieval of hidden gems based on user interests.
+- 👁️ **Semantic Observability**: Integrated with **OpenTelemetry** and **Arize Phoenix**. Provides deep-trace visibility into the entire agentic lifecycle—from raw prompt templates and tool execution to embedding retrieval and final LLM completion.
+- 🌍 **Responsive i18n Frontend**: A modern **Bootstrap 5.3** and **jQuery** interface featuring a robust internationalization (i18n) dictionary. It supports real-time switching between English and Vietnamese and utilizes **Timeline CSS** for high-scannability travel layouts.
+- 🛡️ **Intelligent Fallback Engine**: Built-in graceful degradation for external tools. If the real-time search (Tavily/OpenSearch) fails or is unconfigured, the system triggers an AI-native reasoning fallback to ensure a valid itinerary is always generated.
 
 ---
 
@@ -109,10 +113,10 @@ cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 6. ENDPOINTS
-- Frontend: http://localhost:3000
-- API: http://localhost:8000
+
+- Frontend: http://localhost:8000/index.html
+- API: http://localhost:8000/plan-trip
 - Docs: http://localhost:8000/docs
-- Minimal UI: http://localhost:8000/
 
 Docker (optional)
 ```bash
