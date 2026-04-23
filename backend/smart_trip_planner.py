@@ -1,6 +1,7 @@
+import logging
 import os
 import operator
-import httpx
+
 from typing import Optional, List, Dict, Any
 from typing_extensions import TypedDict, Annotated
 
@@ -16,26 +17,35 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from openinference.instrumentation.langchain import LangChainInstrumentor
 from openinference.instrumentation import using_attributes
 
+from tools.text_utils import merge_unique_csv
+from tools.weather_tools import get_current_weather
+from tools.travel_tools import get_costs, get_destination_info
 from services import DataServiceFactory
 from meta_llm import MetaLLM
+
+# ============================================================
+# Logging
+# ============================================================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("smart_trip_planner")
 
 # ================================
 # Constants & Configuration
 # ================================
 LLM_TEMPERATURE = 0.7
-SEARCH_TIMEOUT_SECONDS = 10.0
-MAX_SEARCH_RESULTS = 2
 DEFAULT_BUDGET_LEVEL = "moderate"
 
 # ================================
 # Observability Setup
 # ================================
 
-
 def setup_observability():
     """Initializes OpenTelemetry and Phoenix for tracing LLM calls."""
-    endpoint = os.getenv("PHOENIX_COLLECTOR_ENDPOINT",
-                         "http://localhost:6006/v1/traces")
+    default_endpoint = "http://localhost:6006/v1/traces"
+    endpoint = os.getenv("PHOENIX_COLLECTOR_ENDPOINT",default_endpoint)
     tracer_provider = TracerProvider()
     tracer_provider.add_span_processor(
         BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
@@ -54,39 +64,7 @@ def safe_attributes(attrs: Dict[str, Any]):
 
 setup_observability()
 
-# ================================
-# to merge duplicate data 
-# ================================
-def merge_unique_csv(prof: dict, *keys: str, sep: str = ', ') -> str:
-    """
-    Merge multiple interest fields from a profile dict into a unique, ordered CSV string.
 
-    - Supports values as: None, str, list/tuple/set, mixed types
-    - Deduplicates while preserving order (first occurrence wins)
-    - Casts all values to string
-    """
-
-    def to_list(v):
-        if not v:
-            return []
-        if isinstance(v, str):
-            return [v]
-        if isinstance(v, (list, tuple, set)):
-            return list(v)
-        return [str(v)]
-
-    seen = set()
-    merged = []
-
-    for key in keys:
-        values = to_list(prof.get(key))
-        for item in values:
-            s = str(item)
-            if s not in seen:
-                seen.add(s)
-                merged.append(s)
-
-    return sep.join(merged)
 
 # ================================
 # Graph State Definition
@@ -98,67 +76,12 @@ class TripState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
     trip_request: Dict[str, Any]
     user_profile: Dict[str, Any]
+    location_coords: Optional[Dict[str, float]]
     research: Optional[str]
+    weather: Optional[str]
     budget: Optional[str]
     final: Optional[str]
     tool_calls: Annotated[List[Dict[str, Any]], operator.add]
-
-# ================================
-# Tools & Helpers
-# ================================
-
-
-def _search_or_fallback(query: str, fallback_instruction: str) -> str:
-    """Attempts a Tavily web search, falling back to LLM generation if it fails."""
-    tavily_key = os.getenv("TAVILY_API_KEY")
-
-    if tavily_key:
-        try:
-            with httpx.Client(timeout=SEARCH_TIMEOUT_SECONDS) as client:
-                SEARCH_URL = "https://api.tavily.com/search"
-                resp = client.post(
-                    SEARCH_URL,
-                    json={
-                        "api_key": tavily_key,
-                        "query": query,
-                        "max_results": MAX_SEARCH_RESULTS,
-                        "include_answer": True,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                if data.get("answer"):
-                    return data["answer"]
-                if data.get("results"):
-                    return data["results"][0].get("content", "")
-        except Exception:
-            pass  # Silently fallback to LLM on search failure
-
-    # Fallback to LLM if Tavily fails or is unconfigured
-    llm = MetaLLM.get_llm(temperature=LLM_TEMPERATURE)
-    res = llm.invoke([
-        SystemMessage(content="Provide a concise travel guide."),
-        HumanMessage(content=fallback_instruction)
-    ])
-    return str(res.content)
-
-
-@tool
-def get_destination_info(destination: str) -> str:
-    """Get weather, safety, and visa info for a destination."""
-    return _search_or_fallback(
-        f"{destination} travel info",
-        f"Summarize travel essentials for {destination}."
-    )
-
-
-@tool
-def get_costs(destination: str, budget_level: str) -> str:
-    """Get average costs for food, transport, and lodging."""
-    return _search_or_fallback(
-        f"{destination} travel costs {budget_level}",
-        f"Estimated costs for {budget_level} travel in {destination}."
-    )
 
 # ================================
 # Core Planner Class
@@ -175,25 +98,33 @@ class SmartTripPlanner:
         self.app = self._build_graph()
 
     def _build_graph(self):
-        """Constructs and compiles the LangGraph state machine."""
         builder = StateGraph(TripState)
 
-        # Register nodes
         builder.add_node("load_profile", self._profile_node)
         builder.add_node("research", self._research_node)
+        builder.add_node("weather", self._weather_node)
         builder.add_node("budget", self._budget_node)
+        builder.add_node("aggregate", lambda state: state)
         builder.add_node("journey_plan", self._journey_plan_node)
 
-        # Define edges (Flow logic)
+        # Start
         builder.add_edge(START, "load_profile")
 
-        # Parallel execution for research and budget
+        # Parallel branches
         builder.add_edge("load_profile", "research")
+        builder.add_edge("load_profile", "weather")
         builder.add_edge("load_profile", "budget")
 
-        # Synthesize at the journey plan
-        builder.add_edge("research", "journey_plan")
-        builder.add_edge("budget", "journey_plan")
+        # Optional dependency (only if needed)
+        # builder.add_edge("weather", "research")
+
+        # Fan-in to aggregation node
+        builder.add_edge("research", "aggregate")
+        builder.add_edge("weather", "aggregate")
+        builder.add_edge("budget", "aggregate")
+
+        # Final synthesis
+        builder.add_edge("aggregate", "journey_plan")
         builder.add_edge("journey_plan", END)
 
         return builder.compile()
@@ -224,7 +155,7 @@ class SmartTripPlanner:
                 HumanMessage(content="Execute task.")
             ])
 
-        calls, summary = [], res.content
+        calls, location_coords, summary = [], None, res.content
 
         # Handle potential tool calls generated by the LLM
         if getattr(res, "tool_calls", None):
@@ -232,12 +163,56 @@ class SmartTripPlanner:
                 tn = ToolNode([get_destination_info])
                 tool_res = tn.invoke({"messages": [res]})
                 summary = tool_res["messages"][-1].content
-                calls.append({"tool": "get_destination_info",
-                             "args": {"destination": dest}})
+                location_coords = tool_res.get("location_coords")
+                calls.append({
+                    "tool": "get_destination_info",
+                    "args": {
+                        "destination": dest
+                    }
+                })
             except Exception:
                 pass
 
-        return {"research": summary, "tool_calls": calls}
+        return {"research": summary, "location_coords": location_coords, "tool_calls": calls}
+    
+    def _weather_node(self, state: TripState) -> Dict[str, Any]:
+        """Gathers weather information about the destination."""
+
+        trip = state.get("trip_request", {})
+        dest = trip.get("destination")
+
+        # -------------------------
+        # 1. Validate input
+        # -------------------------
+        if not dest or not isinstance(dest, str):
+            logger.error(f"[weather_node] invalid destination: {dest}")
+            return {
+                "weather": "Weather unavailable due to invalid destination.",
+                "tool_calls": []
+            }
+
+        dest = dest.strip()
+
+        # -------------------------
+        # 2. Call weather tool (safe)
+        # -------------------------
+        try:
+            weather_info = get_current_weather.invoke({
+                "location": dest
+            })
+        except Exception as e:
+            logger.error(f"[weather_node] weather tool failed: {e}")
+            weather_info = "Weather service unavailable."
+
+        calls = [{
+            "tool": "get_current_weather",
+            "args": {"location": dest}
+        }]
+
+        return {
+            "weather": weather_info,
+            "tool_calls": calls
+        }
 
     def _budget_node(self, state: TripState) -> Dict[str, Any]:
         """Calculates expected costs based on destination and budget level."""
@@ -283,6 +258,7 @@ class SmartTripPlanner:
             - **Duration:** {req.get('duration')}
             - **Budget Level:** {req.get('budget', DEFAULT_BUDGET_LEVEL)}
             - **Local Research Data:** {state.get('research')}
+            - **Weather Information:** {state.get('weather')}
             - **Estimated Costs:** {state.get('budget')}
             - **User Interests:** {user_interests_str}
             - **Target Language:** {prof.get('language', 'English')}
@@ -295,15 +271,16 @@ class SmartTripPlanner:
 
             # STRUCTURAL CONSTRAINTS (STRICT HTML)
             - **Introduction:** Start with a brief summary section:
-                # Tổng quan nhanh
+                # Quick Summary
                 <ul>
-                    <li><strong>Điểm đến:</strong> ...</li>
-                    <li><strong>Thời gian:</strong> ...</li>
-                    <li><strong>Ngân sách:</strong> ...</li>
-                    <li><strong>Sở thích:</strong> ...</li>
+                    <li><strong>Destination:</strong> ...</li>
+                    <li><strong>Duration:</strong> ...</li>
+                    <li><strong>Budget:</strong> ...</li>
+                    <li><strong>Interests:</strong> ...</li>
+                    <li><strong>Weather:</strong> ...</li>
                 </ul>
-            - **Daily Headers:** Daily Header begin with #. Use exactly: # Ngày(Day) N: [Catchy Theme Name]
-            - **Timeline Sections:** Timeline Section begin with ##. Every day MUST have exactly three sections: Sáng(Morning), Chiều(Afternoon), and Tối(Night).
+            - **Daily Headers:** Daily Header begin with <h1>. Use exactly: <h1>Day N: [Catchy Theme Name]</h1>
+            - **Timeline Sections:** Timeline Section use <h2>[Section Name]</h2>. Three section names: Morning, Afternoon, and Evening.
             - **Activities:** Use <ul> and <li> <strong> [Catchy Activity Name] </strong> for activities. Keep descriptions concise but vivid (2-3 sentences per activity).
             - **NO Meta-Talk:** Do not say "Here is your itinerary" or "I hope you enjoy it." Start directly with the summary.
             - **NO Questions:** Do not ask the user for feedback or more info.
