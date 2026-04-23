@@ -1,11 +1,12 @@
 import logging
-
-import httpx
+from typing import Any, Dict
 from meta_llm import MetaLLM
 import os
 from langchain_core.messages import SystemMessage, HumanMessage
 from tools.cache_utils import get_cache, set_cache
 from tools.text_utils import normalize_text
+import json
+from tavily import TavilyClient
 
 
 # ============================================================
@@ -29,13 +30,16 @@ def _search_cache_key(query: str) -> str:
     return f"{SEARCH_PREFIX}:{normalize_text(query)}"
 
 
-def _search_or_fallback(query: str, fallback_instruction: str) -> str:
+def _search_or_fallback(query: str, fallback_instruction: str) -> Dict[str, Any]:
     """
-    Web search with Redis cache + LLM fallback.
+    Web search with:
+    - Redis cache (JSON)
+    - Tavily structured result (content + images)
+    - LLM fallback
     """
 
     if not query:
-        return ""
+        return {"content": "", "images": []}
 
     cache_key = _search_cache_key(query)
 
@@ -44,53 +48,55 @@ def _search_or_fallback(query: str, fallback_instruction: str) -> str:
     # =========================
     cached = get_cache(cache_key)
     if cached:
-        logger.info(f"[CACHE HIT] search: {query}")
-        return cached
-
-    tavily_key = os.getenv("TAVILY_API_KEY")
-
-    # =========================
-    # 2. Try Tavily search
-    # =========================
-    if tavily_key:
+        logger.info(f"[CACHE HIT] {query}")
         try:
-            logger.info(f"[SEARCH] Tavily query: {query}")
+            return json.loads(cached)
+        except Exception:
+            pass  # corrupted cache fallback
 
-            with httpx.Client(timeout=SEARCH_TIMEOUT_SECONDS) as client:
-                resp = client.post(
-                    "https://api.tavily.com/search",
-                    json={
-                        "api_key": tavily_key,
-                        "query": query,
-                        "max_results": MAX_SEARCH_RESULTS,
-                        "include_answer": True,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
+    # =========================
+    # 2. Tavily search
+    # =========================
+    TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+    tavily_client = TavilyClient(TAVILY_API_KEY)
+    
+    if TAVILY_API_KEY:
+        try:
+            logger.info(f"[SEARCH] Tavily: {query}")
 
-                result = None
+            data = tavily_client.search(
+                query,
+                max_results=MAX_SEARCH_RESULTS,
+                search_depth="advanced",
+                include_images=True
+            )
 
-                if data.get("answer"):
-                    result = data["answer"]
-                elif data.get("results"):
-                    result = data["results"][0].get("content", "")
+            # Tavily returns dict, not list
+            results = data.get("results", [])
+            images = data.get("images", [])
 
-                if result:
-                    # =========================
-                    # Cache success result
-                    # =========================
-                    set_cache(cache_key, result)
-                    return result
+            if results:
+                best = results[0]
+
+                payload = {
+                    "content": best.get("content", ""),
+                    "images": images[:3],  # limit images
+                    "source": best.get("url")
+                }
+
+                # ✅ cache as JSON string
+                set_cache(cache_key, json.dumps(payload))
+
+                return payload
 
         except Exception as e:
-            logger.warning(f"Tavily search failed: {e}")
+            logger.warning(f"Tavily failed: {e}")
 
     # =========================
-    # 3. Fallback to LLM
+    # 3. LLM fallback
     # =========================
     try:
-        logger.info(f"[FALLBACK] LLM for query: {query}")
+        logger.info(f"[FALLBACK] LLM: {query}")
 
         llm = MetaLLM.get_llm(temperature=LLM_TEMPERATURE)
 
@@ -99,13 +105,16 @@ def _search_or_fallback(query: str, fallback_instruction: str) -> str:
             HumanMessage(content=fallback_instruction)
         ])
 
-        result = str(res.content).strip()
+        payload = {
+            "content": str(res.content).strip(),
+            "images": [],
+            "source": "llm"
+        }
 
-        if result:
-            set_cache(cache_key, result)
+        set_cache(cache_key, json.dumps(payload))
 
-        return result
+        return payload
 
     except Exception as e:
         logger.error(f"LLM fallback failed: {e}")
-        return ""
+        return {"content": "", "images": []}

@@ -1,9 +1,10 @@
+
 import logging
 import requests
 
-from typing import Dict, Any, Optional, List
 from langchain_core.tools import tool
 
+from tools.location_utils import get_coordinates
 from tools.cache_utils import geo_cache_key, get_geo_cache, make_cache_key, get_cache, set_cache, set_geo_cache
 from tools.text_utils import canonicalize_city_name, looks_vietnamese, normalize_text
 
@@ -91,180 +92,10 @@ def get_current_weather(location: str, unit: str = "celsius") -> str:
         return "Weather service unreachable. Please try again later."
 
 
-# ============================================================
-# Geocoding
-# ============================================================
-
-
-def get_coordinates(city_name: str) -> Optional[Dict[str, Any]]:
-    """
-    Resolve a city name to geographic coordinates.
-
-    This function applies multiple accuracy strategies:
-    - Unicode normalization and alias resolution
-    - Language fallback (vi → en)
-    - Country bias (Vietnam when detected)
-    - Candidate ranking instead of first-hit selection
-
-    Args:
-        city_name: City or location name provided by the user.
-
-    Returns:
-        Dictionary containing latitude, longitude, resolved name, and country
-        if successful; otherwise None.
-    """
-    # -------------------------
-    # 1. Validate input
-    # -------------------------
-    if not city_name or not isinstance(city_name, str):
-        logger.warning(f"Invalid city_name: {city_name}")
-        return None
-
-    city_name = city_name.strip()
-    if len(city_name) < 2:
-        return None
-
-    # -------------------------
-    # 2. Cache lookup
-    # -------------------------
-    cache_key = geo_cache_key(city_name)
-    cached = get_geo_cache(cache_key)
-    if cached:
-        logger.info(f"[GEO CACHE HIT] {city_name}")
-        return cached
-
-    # -------------------------
-    # 3. Prepare attempts
-    # -------------------------
-    geo_url = "https://geocoding-api.open-meteo.com/v1/search"
-
-    canonical = canonicalize_city_name(city_name)
-    country_bias = "VN" if looks_vietnamese(city_name) else None
-
-    attempts = [
-        (city_name, "en"),
-        (city_name, "vi"),
-        (canonical, "vi"),
-        (canonical, "en"),
-    ]
-
-    seen = set()
-    candidates: List[Dict[str, Any]] = []
-
-    # -------------------------
-    # 4. Query API safely
-    # -------------------------
-    for name, lang in attempts:
-        key = (name, lang)
-        if key in seen:
-            continue
-        seen.add(key)
-
-        data = _safe_request(
-            geo_url,
-            {
-                "name": name,
-                "count": 5,
-                "language": lang,
-                "format": "json"
-            }
-        )
-
-        if not data:
-            continue
-
-        results = data.get("results")
-        if not isinstance(results, list):
-            continue
-
-        for r in results:
-            try:
-                lat = r.get("latitude")
-                lon = r.get("longitude")
-
-                if lat is None or lon is None:
-                    continue
-
-                score = 0
-
-                # country bias
-                if country_bias and r.get("country_code") == country_bias:
-                    score += 3
-
-                # population weight
-                pop = r.get("population") or 0
-                if pop > 1_000_000:
-                    score += 2
-                elif pop > 100_000:
-                    score += 1
-
-                # name similarity
-                resolved = normalize_text(r.get("name", ""))
-                if resolved == canonical:
-                    score += 4
-                elif canonical in resolved:
-                    score += 2
-
-                # feature importance (capital, admin)
-                if r.get("feature_code") in {"PPLC", "PPLA"}:
-                    score += 2
-
-                candidates.append({
-                    "score": score,
-                    "lat": lat,
-                    "lon": lon,
-                    "name": r.get("name"),
-                    "country": r.get("country"),
-                    "country_code": r.get("country_code")
-                })
-
-            except Exception as e:
-                logger.debug(f"Candidate parse error: {e}")
-                continue
-
-    # -------------------------
-    # 5. Final selection
-    # -------------------------
-    if not candidates:
-        logger.warning(f"Geolocation failed for '{city_name}'")
-        return None
-
-    candidates.sort(key=lambda x: x["score"], reverse=True)
-    best = candidates[0]
-
-    # -------------------------
-    # 6. Cache result
-    # -------------------------
-    set_geo_cache(cache_key, best)
-
-    logger.info(
-        f"Geolocated '{city_name}' → {best['name']}, {best['country']} "
-        f"({best['lat']}, {best['lon']}) score={best['score']}"
-    )
-
-    return best
-
-# =========================
-# Safe HTTP request
-# =========================
-
-
-def _safe_request(url: str, params: dict, retries: int = 2):
-    for attempt in range(retries + 1):
-        try:
-            resp = requests.get(url, params=params, timeout=5)
-            resp.raise_for_status()
-            return resp.json()
-        except requests.RequestException as e:
-            if attempt == retries:
-                logger.warning(f"Geocoding failed after retries: {e}")
-                return None
-            time.sleep(0.3 * (attempt + 1))  # backoff
 
 # ============================================================
 # Weather helpers
 # ============================================================
-
 
 def get_weather_description(code: int) -> str:
     """
@@ -286,3 +117,5 @@ def get_weather_description(code: int) -> str:
         95: "Thunderstorm", 96: "Thunderstorm with hail"
     }
     return wmo_codes.get(code, "Unknown")
+
+

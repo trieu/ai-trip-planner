@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse  # Added for serving files
 from fastapi.staticfiles import StaticFiles # Added for serving directory assets
 from pydantic import BaseModel
 
-from smart_trip_planner import SmartTripPlanner, safe_attributes
+from core_llm.smart_trip_planner import SmartTripPlanner, safe_attributes
 
 # ================================
 # Environment Setup

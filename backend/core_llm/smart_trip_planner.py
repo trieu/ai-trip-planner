@@ -1,12 +1,10 @@
 import logging
 import os
-import operator
 
-from typing import Optional, List, Dict, Any
-from typing_extensions import TypedDict, Annotated
+from typing import Dict, Any
 
-from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
-from langchain_core.tools import tool
+from langchain_core.messages import SystemMessage, HumanMessage
+
 from langgraph.graph import StateGraph, END, START
 from langgraph.prebuilt import ToolNode
 
@@ -17,6 +15,8 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from openinference.instrumentation.langchain import LangChainInstrumentor
 from openinference.instrumentation import using_attributes
 
+from core_llm.prompt_builder import DEFAULT_BUDGET_LEVEL, build_trip_planner_prompt
+from core_llm.state_models import TripState
 from tools.text_utils import merge_unique_csv
 from tools.weather_tools import get_current_weather
 from tools.travel_tools import get_costs, get_destination_info
@@ -36,7 +36,7 @@ logger = logging.getLogger("smart_trip_planner")
 # Constants & Configuration
 # ================================
 LLM_TEMPERATURE = 0.7
-DEFAULT_BUDGET_LEVEL = "moderate"
+
 
 # ================================
 # Observability Setup
@@ -61,27 +61,9 @@ def safe_attributes(attrs: Dict[str, Any]):
         from contextlib import nullcontext
         return nullcontext()
 
-
 setup_observability()
 
 
-
-# ================================
-# Graph State Definition
-# ================================
-
-
-class TripState(TypedDict):
-    """Defines the state passed between LangGraph nodes."""
-    messages: Annotated[List[BaseMessage], operator.add]
-    trip_request: Dict[str, Any]
-    user_profile: Dict[str, Any]
-    location_coords: Optional[Dict[str, float]]
-    research: Optional[str]
-    weather: Optional[str]
-    budget: Optional[str]
-    final: Optional[str]
-    tool_calls: Annotated[List[Dict[str, Any]], operator.add]
 
 # ================================
 # Core Planner Class
@@ -243,58 +225,13 @@ class SmartTripPlanner:
 
     def _journey_plan_node(self, state: TripState) -> Dict[str, Any]:
         """Synthesizes research, budget, and profile into a final itinerary."""
-        req = state['trip_request']
-        prof = state.get('user_profile', {})
+
+        prompt  = build_trip_planner_prompt(state) 
         
-        user_interests_str = merge_unique_csv(
-            prof,
-            'current_interests',
-            'personal_interests'
-        )
-
-        prompt = f"""
-            # INPUT DATA
-            - **Destination:** {req.get('destination')}
-            - **Duration:** {req.get('duration')}
-            - **Budget Level:** {req.get('budget', DEFAULT_BUDGET_LEVEL)}
-            - **Local Research Data:** {state.get('research')}
-            - **Weather Information:** {state.get('weather')}
-            - **Estimated Costs:** {state.get('budget')}
-            - **User Interests:** {user_interests_str}
-            - **Target Language:** {prof.get('language', 'English')}
-
-            # CONTENT GUIDELINES
-            1. **Tone:** Professional, inspiring, and culturally respectful.
-            2. **Integration:** You MUST weave the "Local Research Data" into the activities. Use specific names of landmarks, restaurants, or transport tips provided in the research.
-            3. **Budget Adherence:** If the budget is "Budget," suggest street food and free walking tours. If "Luxury," suggest fine dining and private transfers.
-            4. **Transport & Dining:** Every day MUST include at least one specific local dining suggestion and a "getting around" tip.
-
-            # STRUCTURAL CONSTRAINTS (STRICT HTML)
-            - **Introduction:** Start with a brief summary section:
-                # Quick Summary
-                <ul>
-                    <li><strong>Destination:</strong> ...</li>
-                    <li><strong>Duration:</strong> ...</li>
-                    <li><strong>Budget:</strong> ...</li>
-                    <li><strong>Interests:</strong> ...</li>
-                    <li><strong>Weather:</strong> ...</li>
-                </ul>
-            - **Daily Headers:** Daily Header begin with <h1>. Use exactly: <h1>Day N: [Catchy Theme Name]</h1>
-            - **Timeline Sections:** Timeline Section use <h2>[Section Name]</h2>. Three section names: Morning, Afternoon, and Evening.
-            - **Activities:** Use <ul> and <li> <strong> [Catchy Activity Name] </strong> for activities. Keep descriptions concise but vivid (2-3 sentences per activity).
-            - **NO Meta-Talk:** Do not say "Here is your itinerary" or "I hope you enjoy it." Start directly with the summary.
-            - **NO Questions:** Do not ask the user for feedback or more info.
-
-            # OUTPUT 
-            - Generate the entire response ONLY in {prof.get('language', 'English')} language.
-            - The final output MUST be in markdown format following the structure and tone guidelines above.
-        """
-
         with safe_attributes({"agent.type": "journey_plan"}):
             role = "You are a world-class travel planner creating a personalized itinerary based on user preferences and local insights."
             res = self.llm.invoke([
-                SystemMessage(
-                    content=role),
+                SystemMessage(content=role),
                 HumanMessage(content=prompt)
             ])
 

@@ -11,6 +11,7 @@ langchain-community
 langgraph
 langchain-google-genai
 langchain-openai
+tavily-python
 
 opentelemetry-api
 opentelemetry-sdk
