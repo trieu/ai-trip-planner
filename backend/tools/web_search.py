@@ -85,7 +85,7 @@ def _search_or_fallback(query: str, fallback_instruction: str) -> Dict[str, Any]
                 }
 
                 # ✅ cache as JSON string
-                set_cache(cache_key, json.dumps(payload))
+                set_cache(cache_key, json.dumps(payload, default=str))
 
                 return payload
 
@@ -111,7 +111,7 @@ def _search_or_fallback(query: str, fallback_instruction: str) -> Dict[str, Any]
             "source": "llm"
         }
 
-        set_cache(cache_key, json.dumps(payload))
+        set_cache(cache_key, json.dumps(payload, default=str))
 
         return payload
 

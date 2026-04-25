@@ -1,46 +1,34 @@
 import os
-import httpx
-from abc import ABC, abstractmethod
-from typing import Dict, Any
-from dotenv import load_dotenv
 
-import random
-import uuid
-from datetime import datetime, timedelta
-
-from services.base_service import BaseProfileService
+from services.base_service import BaseProfileService, require_env
 from services.leocdp_service import LeoCDPService
 from services.pgsql_service import PostgresProfileService
-
-
-
-# ==========================================
-# Load ENV (single source of truth)
-# ==========================================
-load_dotenv()
-
-
-def require_env(key: str) -> str:
-    value = os.getenv(key)
-    if not value:
-        raise ValueError(f"Missing required env: {key}")
-    return value
+from services.mock_test_service import MockProfileService
 
 
 # ==========================================
 # Factory (clean + strict)
 # ==========================================
 class DataServiceFactory:
+    '''Factory class to create instances of data services based on environment configuration.'''
+    
     @staticmethod
     def get_service() -> BaseProfileService:
+        '''Factory method to get the appropriate data service based on environment configuration.'''
+        
+        # Determine the data source from environment variables
         source = os.getenv("PROFILE_SOURCE", "LEO_CDP").upper()
 
+        # In a real system, we might also want to support multiple sources at once, with fallback logic.
+        
         if source == "POSTGRES":
+            # PGSQL connection string should be in the form: postgresql://user:password@host:port/dbname
             return PostgresProfileService(
                 require_env("DATABASE_URL")
             )
 
         elif source == "LEO_CDP":
+            # LEO CDP requires an API key and value, which should be set in the environment variables
             return LeoCDPService(
                 api_key=require_env("LEO_API_KEY"),
                 api_value=require_env("LEO_API_VALUE"),
@@ -48,69 +36,10 @@ class DataServiceFactory:
             )
 
         elif source == "MOCK_DATA":
+            # For testing purposes, we can return a mock service that generates fake profiles
             return MockProfileService(
                 seed=int(os.getenv("MOCK_SEED", "42"))
             )
 
         else:
             raise ValueError(f"Unsupported PROFILE_SOURCE: {source}")
-
-# ==========================================
-# Mock Data Service (for testing without real dependencies)
-# ==========================================
-class MockProfileService(BaseProfileService):
-    def __init__(self, seed: int = 42):
-        self.rng = random.Random(seed)
-
-        self.personas = [
-            {"segment": "high_value", "avg_order_value": 120, "lifetime_value": 5000},
-            {"segment": "mid_value", "avg_order_value": 60, "lifetime_value": 1200},
-            {"segment": "low_value", "avg_order_value": 20, "lifetime_value": 200},
-            {"segment": "churn_risk", "avg_order_value": 45, "lifetime_value": 800},
-        ]
-
-        self.cities = ["Ho Chi Minh City", "Hanoi", "Da Nang", "Can Tho"]
-        self.channels = ["facebook", "google", "email", "organic"]
-        self.interests_pool = [
-            "beach", "mountains", "culture", "food", "adventure", "relaxation", "nightlife", "history"
-        ]
-
-    def _generate_profile(self, user_id: str) -> Dict[str, Any]:
-        persona = self.rng.choice(self.personas)
-
-        last_seen = datetime.now() - timedelta(days=self.rng.randint(0, 30))
-        created_at = last_seen - timedelta(days=self.rng.randint(30, 365))
-
-        return {
-            "user_id": user_id,
-            "profile_id": str(uuid.uuid4()),
-            "segment": persona["segment"],
-            "traits": {
-                "age": self.rng.randint(18, 55),
-                "city": self.rng.choice(self.cities),
-                "preferred_channel": self.rng.choice(self.channels),
-                "device": self.rng.choice(["mobile", "desktop"]),
-            },
-            "metrics": {
-                "avg_order_value": persona["avg_order_value"],
-                "lifetime_value": persona["lifetime_value"],
-                "purchase_count": self.rng.randint(1, 50),
-                "last_seen_days_ago": (datetime.now() - last_seen).days,
-            },
-            "timestamps": {
-                "created_at": created_at.isoformat(),
-                "last_seen": last_seen.isoformat(),
-            },
-            "consent": {
-                "email": self.rng.choice([True, False]),
-                "sms": self.rng.choice([True, False]),
-                "ads": True,
-            },
-            "personal_interests": self.rng.sample(self.interests_pool, k=3),
-
-            "language": "Vietnamese"
-        }
-
-    def get_user_profile(self, user_id: str) -> Dict[str, Any]:
-        self.rng.seed(hash(user_id))
-        return self._generate_profile(user_id)

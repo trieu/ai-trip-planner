@@ -1,3 +1,4 @@
+# Backend Requirements
 fastapi
 PyJWT
 uvicorn[standard]
@@ -6,6 +7,7 @@ python-dotenv
 httpx
 tenacity
 
+# AI
 langchain
 langchain-community
 langgraph
@@ -13,14 +15,19 @@ langchain-google-genai
 langchain-openai
 tavily-python
 
+# Observability
+arize-phoenix
 opentelemetry-api
 opentelemetry-sdk
 opentelemetry-exporter-otlp
-arize-phoenix
 openinference-instrumentation-langchain
 
-sqlalchemy
-psycopg[binary]
-pgvector
-greenlet
-redis
+# Database
+sqlalchemy>=2.0
+asyncpg # Async driver for PostgreSQL, required by SQLAlchemy for async operations
+psycopg[binary] # Synchronous driver for PostgreSQL
+pgvector # For vector search capabilities in PostgreSQL
+greenlet # Required for SQLAlchemy async support
+
+# Cache
+redis>=5  

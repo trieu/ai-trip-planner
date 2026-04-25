@@ -41,6 +41,7 @@ def make_cache_key(location: str, unit: str) -> str:
 
 
 def get_cache(key: str) -> Optional[str]:
+    '''Get a value from Redis cache.'''
     try:
         return redis_client.get(key)
     except Exception as e:
@@ -49,8 +50,14 @@ def get_cache(key: str) -> Optional[str]:
 
 
 def set_cache(key: str, value: str):
+    '''Set a value in Redis cache with a default TTL.'''
+    set_cache_with_ttl(key, REDIS_CACHE_TTL, value)
+
+
+def set_cache_with_ttl(key: str, ttl: int, value: str):
+    '''Set a value in Redis cache with a specified TTL.'''
     try:
-        redis_client.setex(key, REDIS_CACHE_TTL, value)
+        redis_client.setex(key, ttl, value)
     except Exception as e:
         logger.warning(f"Redis SET failed: {e}")
 

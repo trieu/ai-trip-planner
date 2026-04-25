@@ -2,7 +2,8 @@ import os
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv, find_dotenv
 
-from fastapi import FastAPI, HTTPException
+from tools.auth import get_current_user
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse  # Added for serving files
 from fastapi.staticfiles import StaticFiles # Added for serving directory assets
@@ -109,6 +110,14 @@ async def plan_trip(req: TripRequest):
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/profile")
+async def get_profile(user=Depends(get_current_user)):
+    # TODO: Implement actual profile retrieval logic    
+    return {
+        "message": "secure data",
+        "user": user
+    }
 
 if __name__ == "__main__":
     import uvicorn

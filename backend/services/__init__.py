@@ -2,7 +2,15 @@
 from .data_service import DataServiceFactory
 from .leocdp_service import LeoCDPService
 from .pgsql_service import PostgresProfileService   
-from .base_service import BaseProfileService
+from .base_service import BaseProfileService, require_env
+from .mock_test_service import MockProfileService
 
 # Define what is accessible when someone imports * from services
-__all__ = ["DataServiceFactory", "LeoCDPService", "PostgresProfileService", "BaseProfileService"]
+__all__ = [
+    "DataServiceFactory", 
+    "LeoCDPService",
+    "PostgresProfileService", 
+    "BaseProfileService", 
+    "require_env",
+    "MockProfileService"
+]
