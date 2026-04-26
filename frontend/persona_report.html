@@ -1,0 +1,1756 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Customer Persona Social Listening Report</title>
+
+  <!-- Bootstrap CSS + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #071029;
+      --card: #0f1724;
+      --card-hover: #1a2438;
+      --muted: #a9bacd;
+      --accent: #6c63ff;
+      --accent-2: #22c1c3;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #f87171;
+      --border: rgba(255, 255, 255, 0.03);
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font-family: 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
+      background: linear-gradient(180deg, var(--bg) 0%, #041226 100%);
+      color: #e6eef8;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(108, 99, 255, 0.3);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(108, 99, 255, 0.5);
+    }
+
+    .container {
+      max-width: 1200px;
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 48px 16px;
+      text-align: center;
+      animation: fadeInDown 0.6s ease-out;
+    }
+
+    .hero h1 {
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #f1f5f9;
+      letter-spacing: -0.5px;
+    }
+
+    .hero p {
+      color: var(--muted);
+      margin-bottom: 0;
+      font-size: 1rem;
+    }
+
+    /* Card Styling */
+    .card-dark {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 6px 20px rgba(2, 6, 23, 0.6);
+      color: #e6eef8;
+      transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card-dark:hover {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+      border-color: rgba(108, 99, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    /* Data Source Cards */
+    .data-source-card {
+      cursor: pointer;
+      min-height: 130px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .data-source-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(108, 99, 255, 0.05), rgba(34, 193, 195, 0.05));
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .data-source-card:hover::before {
+      opacity: 1;
+    }
+
+    .data-source-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(108, 99, 255, 0.3);
+    }
+
+    .data-source-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      transition: all 0.3s ease;
+      margin-bottom: 12px;
+      z-index: 1;
+    }
+
+    .data-source-icon.social {
+      background: rgba(108, 99, 255, 0.15);
+      color: var(--accent);
+    }
+
+    .data-source-icon.firstparty {
+      background: rgba(34, 193, 195, 0.15);
+      color: var(--accent-2);
+    }
+
+    .data-source-icon.market {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+    }
+
+    .data-source-card:hover .data-source-icon {
+      transform: scale(1.15);
+    }
+
+    .data-source-title {
+      z-index: 1;
+      text-align: center;
+    }
+
+    .data-source-title h6 {
+      margin: 0 0 4px 0;
+      font-weight: 600;
+      color: #f1f5f9;
+      font-size: 0.95rem;
+    }
+
+    .data-source-title p {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    /* Source Item Styling in Modal */
+    .source-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      align-items: flex-start;
+      animation: slideInUp 0.3s ease-out;
+    }
+
+    .source-item:last-child {
+      border-bottom: none;
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .source-item-icon {
+      min-width: 24px;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      background: rgba(255, 255, 255, 0.05);
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    .source-item-content {
+      flex: 1;
+    }
+
+    .source-item-label {
+      font-weight: 600;
+      color: #e6eef8;
+      margin-bottom: 4px;
+      font-size: 0.9rem;
+    }
+
+    .source-item-value {
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .source-item-badge {
+      display: inline-block;
+      background: rgba(108, 99, 255, 0.2);
+      color: var(--accent);
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    .source-item-badge.positive {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+    }
+
+    .source-item-badge.neutral {
+      background: rgba(148, 163, 184, 0.2);
+      color: var(--muted);
+    }
+
+    .source-item-badge.negative {
+      background: rgba(248, 113, 113, 0.2);
+      color: var(--danger);
+    }
+
+    .source-item-badge.warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--warning);
+    }
+
+    .source-stats {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .stat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .stat-chip strong {
+      color: #e6eef8;
+    }
+
+    /* Timeline */
+    .timeline {
+      position: relative;
+      margin-top: 24px;
+      padding: 24px 12px;
+    }
+
+    .timeline-line {
+      position: absolute;
+      top: 48px;
+      left: 6%;
+      right: 6%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--border), rgba(108, 99, 255, 0.1), var(--border));
+      border-radius: 6px;
+      z-index: 1;
+    }
+
+    .timeline-steps {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      position: relative;
+      z-index: 2;
+      flex-wrap: wrap;
+    }
+
+    .timeline-step {
+      flex: 1 1 auto;
+      min-width: 80px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-direction: column;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 8px;
+      border-radius: 8px;
+    }
+
+    .timeline-step:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 4px;
+    }
+
+    .timeline-step:hover:not([aria-pressed="true"]) {
+      transform: translateY(-4px);
+      color: #fff;
+    }
+
+    .timeline-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      display: inline-block;
+      border: 3px solid var(--border);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .timeline-step[aria-pressed="true"] .timeline-dot {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      box-shadow: 0 0 20px rgba(108, 99, 255, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.1);
+      transform: scale(1.25);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .timeline-step small {
+      font-size: 0.8rem;
+      display: block;
+      margin-top: 6px;
+      font-weight: 500;
+    }
+
+    /* Journey detail panel */
+    .journey-detail-card {
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .journey-detail-card h6 {
+      color: #f1f5f9;
+      font-weight: 600;
+    }
+
+    /* Persona panel */
+    .persona-traits li {
+      margin-bottom: 12px;
+      color: var(--muted);
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .persona-traits li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--success);
+      font-weight: bold;
+    }
+
+    .badge-persona {
+      background: linear-gradient(90deg, var(--accent), #8b5cf6);
+      color: white;
+      border-radius: 12px;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 12px rgba(108, 99, 255, 0.2);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .small-note {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    /* Progress bars */
+    .progress {
+      height: 8px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Buttons */
+    .btn {
+      border-radius: 8px;
+      font-weight: 500;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #5a52d5, #7c3aed);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(108, 99, 255, 0.3);
+    }
+
+    .btn-outline-light {
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline-light:hover {
+      color: #f1f5f9;
+      border-color: rgba(108, 99, 255, 0.3);
+      background: rgba(108, 99, 255, 0.05);
+    }
+
+    .btn-sm {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+    }
+
+    /* Toast / Alert Styling */
+    .alert-success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--success);
+      border-radius: 8px;
+    }
+
+    .alert-info {
+      background: rgba(34, 193, 195, 0.1);
+      border: 1px solid rgba(34, 193, 195, 0.3);
+      color: var(--accent-2);
+      border-radius: 8px;
+    }
+
+    /* Modal */
+    .modal-content {
+      background: var(--card);
+      color: inherit;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+
+    .modal-header {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-footer {
+      border-top: 1px solid var(--border);
+    }
+
+    .btn-close-white {
+      filter: invert(1);
+    }
+
+    .modal-header h5 {
+      color: #f1f5f9;
+      font-weight: 600;
+    }
+
+    .modal-body p {
+      color: var(--muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 767px) {
+      .hero {
+        padding: 32px 12px;
+      }
+
+      .hero h1 {
+        font-size: 1.35rem;
+      }
+
+      .timeline-line {
+        left: 12px;
+        right: 12px;
+      }
+
+      .timeline-step {
+        min-width: 70px;
+        padding: 6px;
+      }
+
+      .timeline-step small {
+        font-size: 0.7rem;
+      }
+
+      .card-dark {
+        padding: 16px;
+      }
+
+      .card-actions {
+        justify-content: flex-start;
+        margin-top: 12px;
+      }
+
+      .d-flex.align-items-start.justify-content-between {
+        flex-direction: column;
+        align-items: flex-start !important;
+      }
+
+      .text-end {
+        margin-top: 12px;
+        text-align: left !important;
+      }
+    }
+
+    /* Accessibility */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+
+    /* Animations */
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    /* Chart container */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      min-height: 200px;
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        background: white;
+        color: #000;
+      }
+
+      .card-dark {
+        border: 1px solid #ccc;
+        background: white;
+      }
+
+      .btn,
+      .card-actions {
+        display: none;
+      }
+
+      .hero h1 {
+        color: #000;
+      }
+
+      .muted {
+        color: #666;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="py-4 py-md-5">
+    <div class="container">
+
+      <!-- HERO -->
+      <section class="hero">
+        <h1><i class="bi bi-ear-fill" style="color: var(--accent);"></i> Customer Persona Social Listening Report</h1>
+        <p class="muted">Real-time sentiment analysis + journey intelligence for targeted customer engagement</p>
+      </section>
+
+      <!-- DATA SOURCES -->
+      <section class="mb-5">
+        <h5 class="mb-3" style="color: #f1f5f9;"><i class="bi bi-database me-2" style="color: var(--accent);"></i>Data Sources</h5>
+        
+        <div class="row g-3 data-sources">
+          <!-- SOCIAL MEDIA SOURCE -->
+          <div class="col-md-4">
+            <div class="card-dark data-source-card" id="socialSourceBtn" style="cursor: pointer;" role="button" tabindex="0" title="Click to view social media details">
+              <div class="data-source-icon social">
+                <i class="bi bi-chat-dots-fill"></i>
+              </div>
+              <div class="data-source-title">
+                <h6>Social Media Listening</h6>
+                <p>Real-time social signals</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- FIRST-PARTY DATA SOURCE -->
+          <div class="col-md-4">
+            <div class="card-dark data-source-card" id="firstPartySourceBtn" style="cursor: pointer;" role="button" tabindex="0" title="Click to view first-party data details">
+              <div class="data-source-icon firstparty">
+                <i class="bi bi-people-fill"></i>
+              </div>
+              <div class="data-source-title">
+                <h6>First-Party Data</h6>
+                <p>Customer behavior & transactions</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- MARKET RESEARCH SOURCE -->
+          <div class="col-md-4">
+            <div class="card-dark data-source-card" id="marketSourceBtn" style="cursor: pointer;" role="button" tabindex="0" title="Click to view market research details">
+              <div class="data-source-icon market">
+                <i class="bi bi-graph-up-arrow"></i>
+              </div>
+              <div class="data-source-title">
+                <h6>Market Research</h6>
+                <p>Competitive & industry insights</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- JOURNEY + DETAILS -->
+      <section class="mb-5">
+        <div class="card-dark">
+          <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-3">
+            <div>
+              <h5 class="mb-2"><i class="bi bi-diagram-3 me-2" style="color: var(--accent);"></i>Customer Journey Timeline</h5>
+              <p class="muted small-note mb-0">Click or press Enter/Space on a step. Use ← → arrows to navigate.</p>
+            </div>
+            <div class="card-actions">
+              <button id="exportBtn" class="btn btn-sm btn-outline-light" title="Print report">
+                <i class="bi bi-printer-fill"></i> Print
+              </button>
+              <button id="copyDetailBtn" class="btn btn-sm btn-outline-light" title="Copy detail to clipboard">
+                <i class="bi bi-clipboard"></i> Copy
+              </button>
+            </div>
+          </div>
+
+          <div class="timeline" aria-label="Customer journey timeline">
+            <div class="timeline-line" aria-hidden="true"></div>
+
+            <div class="timeline-steps">
+              <button class="timeline-step" data-step="0" aria-pressed="true" tabindex="0" title="Social discovery phase">
+                <span class="timeline-dot" aria-hidden="true"></span>
+                <small>Social</small>
+              </button>
+
+              <button class="timeline-step" data-step="1" aria-pressed="false" tabindex="-1" title="Search & research phase">
+                <span class="timeline-dot" aria-hidden="true"></span>
+                <small>Search</small>
+              </button>
+
+              <button class="timeline-step" data-step="2" aria-pressed="false" tabindex="-1" title="Comparison & evaluation phase">
+                <span class="timeline-dot" aria-hidden="true"></span>
+                <small>Compare</small>
+              </button>
+
+              <button class="timeline-step" data-step="3" aria-pressed="false" tabindex="-1" title="Purchase conversion phase">
+                <span class="timeline-dot" aria-hidden="true"></span>
+                <small>Purchase</small>
+              </button>
+
+              <button class="timeline-step" data-step="4" aria-pressed="false" tabindex="-1" title="Post-purchase experience phase">
+                <span class="timeline-dot" aria-hidden="true"></span>
+                <small>Experience</small>
+              </button>
+            </div>
+
+            <div class="mt-5 card-dark journey-detail-card" id="journeyDetail" role="region" aria-live="polite" aria-label="Journey step details">
+              <div class="row g-3">
+                <div class="col-md-8">
+                  <h6 id="journeyTitle" class="mb-2">Social</h6>
+                  <p id="journeyText" class="muted mb-0">User complains on TikTok about flight delay — sentiment negative, opportunity to retain.</p>
+                </div>
+
+                <div class="col-md-4 text-md-end">
+                  <div class="mb-2">
+                    <span class="badge badge-persona">
+                      <i class="bi bi-person-fill"></i> Budget Traveler
+                    </span>
+                  </div>
+                  <div class="small-note">
+                    Persona Score: <strong id="personaScore" style="color: #f1f5f9;">0.60</strong>
+                  </div>
+                  <div class="small-note mt-1" id="sentimentBadge">
+                    <span class="badge" style="background: rgba(244, 63, 94, 0.2); color: #f87171;">
+                      <i class="bi bi-emoji-frown"></i> Negative
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- PERSONA & SENTIMENT -->
+      <section class="mb-5">
+        <div class="row g-3">
+          <!-- Left: Persona Evolution Chart -->
+          <div class="col-lg-6">
+            <div class="card-dark h-100 d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0"><i class="bi bi-graph-up me-2" style="color: var(--accent);"></i>Persona Evolution</h6>
+                <div class="muted small-note">Last 24h</div>
+              </div>
+              <div class="chart-container flex-grow-1" style="min-height: 200px;">
+                <canvas id="personaChart" aria-label="Persona evolution chart over 5 journey stages"></canvas>
+              </div>
+
+              <hr class="my-3" style="border-color: var(--border);">
+
+              <h6 class="mb-3"><i class="bi bi-speedometer2 me-2" style="color: var(--accent);"></i>Persona Traits</h6>
+              <ul class="persona-traits list-unstyled mb-0">
+                <li>
+                  <div class="d-flex justify-content-between mb-1">
+                    <small class="muted">Price Sensitivity</small>
+                    <small style="color: #f1f5f9; font-weight: 600;">90%</small>
+                  </div>
+                  <div class="progress">
+                    <div class="progress-bar bg-warning" role="progressbar" style="width: 90%;" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                </li>
+
+                <li class="mt-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <small class="muted">Booking Predictability</small>
+                    <small style="color: #f1f5f9; font-weight: 600;">65%</small>
+                  </div>
+                  <div class="progress">
+                    <div class="progress-bar bg-info" role="progressbar" style="width: 65%;" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                </li>
+
+                <li class="mt-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <small class="muted">Complaint Risk</small>
+                    <small style="color: #f1f5f9; font-weight: 600;">78%</small>
+                  </div>
+                  <div class="progress">
+                    <div class="progress-bar bg-danger" role="progressbar" style="width: 78%;" aria-valuenow="78" aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                </li>
+
+                <li class="mt-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <small class="muted">Social Influence</small>
+                    <small style="color: #f1f5f9; font-weight: 600;">72%</small>
+                  </div>
+                  <div class="progress">
+                    <div class="progress-bar" style="background: linear-gradient(90deg, var(--accent-2), #06b6d4); width: 72%;" role="progressbar" aria-valuenow="72" aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Right: Current Persona -->
+          <div class="col-lg-6">
+            <div class="card-dark h-100 d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+                <div>
+                  <h6 class="mb-1"><i class="bi bi-person-badge me-2" style="color: var(--accent);"></i>Current Persona</h6>
+                  <p class="muted small-note mb-0">Predicted from cross-channel signals</p>
+                </div>
+                <div class="text-md-end">
+                  <div class="small-note muted">
+                    <i class="bi bi-clock"></i> Updated: <strong>Real-time</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-2">
+                <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+                  <span class="badge badge-persona">Budget Traveler</span>
+                  <div class="muted small-note">High price sensitivity · Last-minute bookings</div>
+                </div>
+
+                <div class="alert alert-info p-3 mb-3" role="alert">
+                  <i class="bi bi-exclamation-circle me-2"></i>
+                  <strong>Insight:</strong> High complaint risk detected. Recommend immediate engagement with service recovery offer.
+                </div>
+
+                <h6 class="mb-2" style="font-size: 0.9rem; color: #f1f5f9;">Key Behaviors:</h6>
+                <ul class="persona-traits list-unstyled">
+                  <li>High price sensitivity & coupon usage</li>
+                  <li>Last-minute booking patterns</li>
+                  <li>Social complaint detected</li>
+                  <li>Likely to share experience on social media</li>
+                </ul>
+              </div>
+
+              <div class="mt-auto d-flex gap-2 justify-content-end align-items-center flex-wrap pt-3">
+                <button id="simulateBtn" class="btn btn-primary btn-sm" title="View recommendations based on persona">
+                  <i class="bi bi-lightning-fill"></i> Actions
+                </button>
+                <button id="recommendBtn" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#recommendModal">
+                  <i class="bi bi-list-check"></i> Tips
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SENTIMENT -->
+      <section class="mb-5">
+        <div class="card-dark">
+          <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+              <h6 class="mb-1"><i class="bi bi-chat-heart me-2" style="color: var(--accent);"></i>Social Sentiment (Real-time)</h6>
+              <div class="muted small-note">Mentions by sentiment across all channels</div>
+            </div>
+            <div class="text-md-end">
+              <span class="small-note muted">
+                <i class="bi bi-hourglass-split"></i> Window: Last 60 min
+              </span>
+            </div>
+          </div>
+
+          <div class="chart-container" style="min-height: 180px;">
+            <canvas id="sentimentChart" aria-label="Sentiment distribution chart showing positive, neutral, and negative mentions"></canvas>
+          </div>
+
+          <div class="row g-2 mt-4 text-center">
+            <div class="col-sm-4">
+              <div class="small-note">
+                <i class="bi bi-emoji-smile" style="color: var(--success);"></i> <strong style="color: #f1f5f9;">Positive</strong>
+                <div id="posSentiment">12</div>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="small-note">
+                <i class="bi bi-emoji-neutral" style="color: var(--muted);"></i> <strong style="color: #f1f5f9;">Neutral</strong>
+                <div id="neuSentiment">8</div>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="small-note">
+                <i class="bi bi-emoji-frown" style="color: var(--danger);"></i> <strong style="color: #f1f5f9;">Negative</strong>
+                <div id="negSentiment">5</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Data Source Details Modal - Social Media -->
+  <div class="modal fade" id="socialSourceModal" tabindex="-1" aria-labelledby="socialSourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header border-0">
+          <h5 class="modal-title" id="socialSourceModalLabel">
+            <i class="bi bi-chat-dots-fill me-2" style="color: var(--accent);"></i> Social Media Listening
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="muted mb-4">Real-time monitoring of customer sentiment and engagement across social channels</p>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(108, 99, 255, 0.2); color: var(--accent);">
+              <i class="bi bi-chat-fill"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Complaint Mentions</div>
+              <div class="source-item-value">TikTok: Flight delay complaint 2h ago · 8.2K impressions · 1.2K profile clicks</div>
+              <span class="source-item-badge negative">Negative</span>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(248, 113, 113, 0.2); color: #f87171;">
+              <i class="bi bi-emoji-frown"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Sentiment Score</div>
+              <div class="source-item-value">-0.45 (negative trend, 12% increase in complaints over last 24h)</div>
+              <span class="source-item-badge negative">⬆️ Worsening</span>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(34, 193, 195, 0.2); color: var(--accent-2);">
+              <i class="bi bi-person-hearts"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Engagement Rate</div>
+              <div class="source-item-value">142 likes, 28 shares, 5 replies · Post is gaining viral momentum · High engagement</div>
+              <span class="source-item-badge positive">High</span>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(245, 158, 11, 0.2); color: var(--warning);">
+              <i class="bi bi-tag-fill"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Topics & Hashtags</div>
+              <div class="source-item-value">#cheapflights · #vietjet · #travelfail · #budget · #traveldiscount</div>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(108, 99, 255, 0.2); color: var(--accent);">
+              <i class="bi bi-graph-up"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Reach & Impressions</div>
+              <div class="source-item-value">8.2K impressions (last 24h) · 1.2K profile clicks · 420 new followers from this post</div>
+            </div>
+          </div>
+
+          <div class="source-stats">
+            <div class="stat-chip">
+              <i class="bi bi-calendar3"></i>
+              <span>Monitoring: <strong>Last 24h</strong></span>
+            </div>
+            <div class="stat-chip">
+              <i class="bi bi-geo-alt-fill"></i>
+              <span>Region: <strong>Vietnam</strong></span>
+            </div>
+            <div class="stat-chip">
+              <i class="bi bi-telephone-fill"></i>
+              <span>Channels: <strong>4</strong> platforms</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Source Details Modal - First-Party Data -->
+  <div class="modal fade" id="firstPartySourceModal" tabindex="-1" aria-labelledby="firstPartySourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header border-0">
+          <h5 class="modal-title" id="firstPartySourceModalLabel">
+            <i class="bi bi-people-fill me-2" style="color: var(--accent-2);"></i> First-Party Data
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="muted mb-4">Direct customer behavior, transactions, and engagement data from your platforms</p>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(34, 193, 195, 0.2); color: var(--accent-2);">
+              <i class="bi bi-card-checklist"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Booking Behavior</div>
+              <div class="source-item-value">6 bookings in 30 days · Average spend: $156 · Consistent last-minute booker · No advance planning</div>
+              <span class="source-item-badge positive">Active</span>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(248, 113, 113, 0.2); color: #f87171;">
+              <i class="bi bi-percent"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Price Sensitivity</div>
+              <div class="source-item-value">Uses price filters on 90% of searches · Applies coupons on 78% of purchases · Always looks for discounts</div>
+              <span class="source-item-badge negative">Very High</span>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(16, 185, 129, 0.2); color: var(--success);">
+              <i class="bi bi-calendar-check"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Booking Frequency</div>
+              <div class="source-item-value">2-3 bookings per month · Zero refunds · Budget-conscious travel style · Sticks with purchases</div>
+              <span class="source-item-badge positive">Predictable</span>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(245, 158, 11, 0.2); color: var(--warning);">
+              <i class="bi bi-suit-heart-fill"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Customer Lifetime Value</div>
+              <div class="source-item-value">CLV: $2,340 · Retention rate: 65% · Churn risk: Medium · High profit margin customer</div>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(108, 99, 255, 0.2); color: var(--accent);">
+              <i class="bi bi-device-ssd"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Device & Channel Preference</div>
+              <div class="source-item-value">Mobile: 85% of interactions · iOS app preferred · Push notification open rate: 42% · Email engagement: High</div>
+            </div>
+          </div>
+
+          <div class="source-stats">
+            <div class="stat-chip">
+              <i class="bi bi-stopwatch-fill"></i>
+              <span>Last visit: <strong>6h ago</strong></span>
+            </div>
+            <div class="stat-chip">
+              <i class="bi bi-inbox"></i>
+              <span>Emails opened: <strong>5 of 7</strong></span>
+            </div>
+            <div class="stat-chip">
+              <i class="bi bi-mouse2-fill"></i>
+              <span>Engagement: <strong>High</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Source Details Modal - Market Research -->
+  <div class="modal fade" id="marketSourceModal" tabindex="-1" aria-labelledby="marketSourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header border-0">
+          <h5 class="modal-title" id="marketSourceModalLabel">
+            <i class="bi bi-graph-up-arrow me-2" style="color: var(--warning);"></i> Market Research & Competitive Intel
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="muted mb-4">Industry trends, competitive benchmarking, and market opportunities analysis</p>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(245, 158, 11, 0.2); color: var(--warning);">
+              <i class="bi bi-trophy-fill"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Competitor Benchmarking</div>
+              <div class="source-item-value">Bamboo Airways: 15% cheaper pricing · AirAsia: Better service ratings · Vietjet leads in budget segment · Market leadership position strong</div>
+              <span class="source-item-badge neutral">Market position</span>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(108, 99, 255, 0.2); color: var(--accent);">
+              <i class="bi bi-chat-quote"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Review Aggregation & Ratings</div>
+              <div class="source-item-value">Vietjet average rating: 3.8/5 stars · Common complaints: Service delays, hidden baggage fees, poor customer support · Top praise: Low fares, frequent routes</div>
+              <span class="source-item-badge negative">Weakness in service</span>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(16, 185, 129, 0.2); color: var(--success);">
+              <i class="bi bi-bar-chart-fill"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Industry Trends & Growth</div>
+              <div class="source-item-value">Budget travel segment: +12% YoY growth · Online booking penetration: 78% · Mobile-first bookings growing 23% annually · Post-pandemic travel surge continuing</div>
+              <span class="source-item-badge positive">Growing market</span>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(34, 193, 195, 0.2); color: var(--accent-2);">
+              <i class="bi bi-headset"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Customer Support Sentiment Analysis</div>
+              <div class="source-item-value">Response rate: 68% (below industry standard 85%) · Satisfaction score: 62% · Common unresolved issues: Refund disputes · Support quality needs improvement</div>
+              <span class="source-item-badge negative">Below average</span>
+            </div>
+          </div>
+
+          <div class="source-item">
+            <div class="source-item-icon" style="background: rgba(248, 113, 113, 0.2); color: #f87171;">
+              <i class="bi bi-lightning-fill"></i>
+            </div>
+            <div class="source-item-content">
+              <div class="source-item-label">Market Opportunity & Strategic Insights</div>
+              <div class="source-item-value">Improve service quality to compete with Bamboo Airways · Free baggage inclusion could be key differentiator · Enhanced customer support critical to compete · Market gap: Premium budget segment</div>
+            </div>
+          </div>
+
+          <div class="source-stats">
+            <div class="stat-chip">
+              <i class="bi bi-calendar3"></i>
+              <span>Data updated: <strong>Today</strong></span>
+            </div>
+            <div class="stat-chip">
+              <i class="bi bi-building"></i>
+              <span>Competitors tracked: <strong>12</strong></span>
+            </div>
+            <div class="stat-chip">
+              <i class="bi bi-database-fill"></i>
+              <span>Reviews analyzed: <strong>2.3K+</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recommendations Modal -->
+  <div class="modal fade" id="recommendModal" tabindex="-1" aria-labelledby="recommendModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header border-0">
+          <h5 class="modal-title" id="recommendModalLabel">
+            <i class="bi bi-lightbulb-fill me-2" style="color: var(--accent);"></i> Recommended Actions
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="muted mb-3">Personalized actions for <strong id="modalPersonaName">Budget Traveler</strong> at <strong id="modalStepName">Social</strong> stage:</p>
+
+          <div id="recommendationsList" class="list-unstyled">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button id="applyRecommendation" type="button" class="btn btn-primary btn-sm">Apply Primary Action</button>
+          <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Toast -->
+  <div id="successToast" class="position-fixed bottom-0 end-0 p-3" style="z-index: 11; display: none;">
+    <div class="alert alert-success alert-dismissible fade show mb-0" role="alert" style="min-width: 300px;">
+      <i class="bi bi-check-circle me-2"></i>
+      <strong id="toastMessage">Action completed successfully!</strong>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  </div>
+
+  <!-- Bootstrap bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    'use strict';
+
+    // =========================
+    // CONFIGURATION & DATA
+    // =========================
+
+    const journeyData = [
+      {
+        title: 'Social Listening',
+        text: 'User complains on TikTok about flight delay — sentiment negative, opportunity to retain.',
+        personaScore: 0.6,
+        sentiment: 'negative',
+        recommendations: [
+          { title: 'Service Recovery', desc: '20% flight voucher + priority rebooking', channels: 'DM, Email' },
+          { title: 'Issue Escalation', desc: 'Route to VIP support team immediately', channels: 'System' },
+          { title: 'Sentiment Monitor', desc: 'Track follow-up mentions over next 24h', channels: 'Dashboard' }
+        ]
+      },
+      {
+        title: 'Search',
+        text: 'User searches for cheaper alternatives and dates. High price sensitivity signals evident.',
+        personaScore: 0.7,
+        sentiment: 'neutral',
+        recommendations: [
+          { title: 'Flash Sale Push', desc: 'Limited-time offer on app home screen', channels: 'App Push' },
+          { title: 'Dynamic Retargeting', desc: 'Show similar routes at 15% discount', channels: 'Facebook, Google' },
+          { title: 'Cart Reminder', desc: 'Email with best price guarantee + coupon code', channels: 'Email' }
+        ]
+      },
+      {
+        title: 'Compare',
+        text: 'Comparing carriers and fares; coupon use probability increases significantly.',
+        personaScore: 0.8,
+        sentiment: 'neutral',
+        recommendations: [
+          { title: 'Price Match', desc: 'Guarantee lower price than competitors', channels: 'Website' },
+          { title: 'Social Proof', desc: 'Show 4.8★ reviews from similar travelers', channels: 'Comparison Page' },
+          { title: 'Limited Time', desc: 'Countdown timer: 2 seats at this price', channels: 'Web, App' }
+        ]
+      },
+      {
+        title: 'Purchase',
+        text: 'Booking VietJet flight at discounted price with applied coupon code. Conversion confirmed.',
+        personaScore: 0.9,
+        sentiment: 'positive',
+        recommendations: [
+          { title: 'Confirmation & Upsell', desc: 'Travel insurance & seat upgrade offers', channels: 'Email' },
+          { title: 'Pre-Trip Engagement', desc: 'Packing tips, destination guides 48h before', channels: 'App, Email' },
+          { title: 'Loyalty Bonus', desc: '+2x points for this booking (limited offer)', channels: 'App' }
+        ]
+      },
+      {
+        title: 'Experience & Advocacy',
+        text: 'Shares positive experience on Facebook and tags friends. Strong advocate signals detected.',
+        personaScore: 0.75,
+        sentiment: 'positive',
+        recommendations: [
+          { title: 'Referral Incentive', desc: '$50 credit for each friend who books', channels: 'Email, App' },
+          { title: 'UGC Amplify', desc: 'Repost user content on brand channels', channels: 'Social' },
+          { title: 'VIP Program', desc: 'Invite to exclusive "frequent flyer" benefits', channels: 'Email' }
+        ]
+      }
+    ];
+
+    // =========================
+    // DOM ELEMENTS & STATE
+    // =========================
+
+    const steps = Array.from(document.querySelectorAll('.timeline-step'));
+    const journeyTitle = document.getElementById('journeyTitle');
+    const journeyText = document.getElementById('journeyText');
+    const personaScoreEl = document.getElementById('personaScore');
+    const sentimentBadge = document.getElementById('sentimentBadge');
+    const journeyDetailRegion = document.getElementById('journeyDetail');
+    const copyDetailBtn = document.getElementById('copyDetailBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const simulateBtn = document.getElementById('simulateBtn');
+    const recommendBtn = document.getElementById('recommendBtn');
+    const applyRecommendation = document.getElementById('applyRecommendation');
+    const recommendationsList = document.getElementById('recommendationsList');
+    const successToast = document.getElementById('successToast');
+    const toastMessage = document.getElementById('toastMessage');
+
+    const socialSourceBtn = document.getElementById('socialSourceBtn');
+    const firstPartySourceBtn = document.getElementById('firstPartySourceBtn');
+    const marketSourceBtn = document.getElementById('marketSourceBtn');
+
+    let selectedIndex = 0;
+    let personaChart = null;
+    let sentimentChart = null;
+    let hasSimulated = false;
+
+    // =========================
+    // DATA SOURCE MODAL TRIGGERS
+    // =========================
+
+    socialSourceBtn.addEventListener('click', () => {
+      const modal = new bootstrap.Modal(document.getElementById('socialSourceModal'));
+      modal.show();
+    });
+
+    socialSourceBtn.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById('socialSourceModal'));
+        modal.show();
+      }
+    });
+
+    firstPartySourceBtn.addEventListener('click', () => {
+      const modal = new bootstrap.Modal(document.getElementById('firstPartySourceModal'));
+      modal.show();
+    });
+
+    firstPartySourceBtn.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById('firstPartySourceModal'));
+        modal.show();
+      }
+    });
+
+    marketSourceBtn.addEventListener('click', () => {
+      const modal = new bootstrap.Modal(document.getElementById('marketSourceModal'));
+      modal.show();
+    });
+
+    marketSourceBtn.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById('marketSourceModal'));
+        modal.show();
+      }
+    });
+
+    // =========================
+    // TIMELINE MANAGEMENT
+    // =========================
+
+    function updateSelected(index, focus = false) {
+      selectedIndex = (index + steps.length) % steps.length;
+
+      // Update aria-pressed for all steps
+      steps.forEach((el, i) => {
+        el.setAttribute('aria-pressed', i === selectedIndex ? 'true' : 'false');
+        el.setAttribute('tabindex', i === selectedIndex ? '0' : '-1');
+      });
+
+      // Update journey detail
+      const d = journeyData[selectedIndex];
+      journeyTitle.textContent = d.title;
+      journeyText.textContent = d.text;
+      personaScoreEl.textContent = d.personaScore.toFixed(2);
+
+      // Update sentiment badge
+      const sentimentColor = {
+        positive: '#10b981',
+        neutral: '#94a3b8',
+        negative: '#f87171'
+      };
+      const sentimentText = {
+        positive: 'Positive',
+        neutral: 'Neutral',
+        negative: 'Negative'
+      };
+      const sentimentIcon = {
+        positive: 'emoji-smile',
+        neutral: 'emoji-neutral',
+        negative: 'emoji-frown'
+      };
+
+      const bgColor = d.sentiment === 'positive' ? '16, 185, 129' : d.sentiment === 'neutral' ? '169, 178, 205' : '248, 113, 113';
+      sentimentBadge.innerHTML = `
+        <span class="badge" style="background: rgba(${bgColor}, 0.2); color: ${sentimentColor[d.sentiment]};">
+          <i class="bi bi-${sentimentIcon[d.sentiment]}"></i> ${sentimentText[d.sentiment]}
+        </span>
+      `;
+
+      // Update recommendations modal content
+      document.getElementById('modalPersonaName').textContent = 'Budget Traveler';
+      document.getElementById('modalStepName').textContent = d.title;
+
+      if (recommendationsList) {
+        recommendationsList.innerHTML = d.recommendations.map((rec, idx) => `
+          <div class="mb-3 pb-3 ${idx < d.recommendations.length - 1 ? 'border-bottom' : ''}" style="border-color: var(--border);">
+            <div class="d-flex align-items-start gap-2">
+              <span class="badge" style="background: linear-gradient(135deg, var(--accent), #8b5cf6); margin-top: 2px;">${idx + 1}</span>
+              <div class="flex-grow-1">
+                <h6 class="mb-1" style="color: #f1f5f9;">${rec.title}</h6>
+                <p class="muted small-note mb-1">${rec.desc}</p>
+                <small class="muted"><i class="bi bi-share-fill"></i> ${rec.channels}</small>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      if (focus) {
+        steps[selectedIndex].focus();
+      }
+
+      // Animate the journey detail card
+      journeyDetailRegion.classList.remove('journey-detail-card');
+      void journeyDetailRegion.offsetWidth;
+      journeyDetailRegion.classList.add('journey-detail-card');
+    }
+
+    // Timeline click + keyboard handlers
+    steps.forEach((el, i) => {
+      el.addEventListener('click', () => updateSelected(i));
+
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          updateSelected(i);
+        } else if (ev.key === 'ArrowRight') {
+          ev.preventDefault();
+          updateSelected(i + 1, true);
+        } else if (ev.key === 'ArrowLeft') {
+          ev.preventDefault();
+          updateSelected(i - 1, true);
+        }
+      });
+    });
+
+    // Initialize
+    updateSelected(0);
+
+    // =========================
+    // COPY TO CLIPBOARD
+    // =========================
+
+    copyDetailBtn.addEventListener('click', async () => {
+      const text = `${journeyTitle.textContent} — ${journeyText.textContent}`;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Detail copied to clipboard!', 'success');
+        copyDetailBtn.innerHTML = '<i class="bi bi-check-lg"></i> Copied';
+        setTimeout(() => {
+          copyDetailBtn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+        }, 1500);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+        showToast('Failed to copy to clipboard', 'error');
+      }
+    });
+
+    // =========================
+    // PRINT
+    // =========================
+
+    exportBtn.addEventListener('click', () => {
+      window.print();
+    });
+
+    // =========================
+    // CHARTS INITIALIZATION
+    // =========================
+
+    function initCharts() {
+      // Destroy existing charts if they exist
+      if (personaChart) personaChart.destroy();
+      if (sentimentChart) sentimentChart.destroy();
+
+      // Persona Chart
+      const personaCtx = document.getElementById('personaChart');
+      if (personaCtx) {
+        const ctx = personaCtx.getContext('2d');
+        personaChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: journeyData.map(d => d.title),
+            datasets: [{
+              label: 'Persona Score',
+              data: journeyData.map(d => d.personaScore),
+              borderColor: 'rgba(108, 99, 255, 0.95)',
+              backgroundColor: (context) => {
+                const grd = context.chart.ctx.createLinearGradient(0, 0, 0, 200);
+                grd.addColorStop(0, 'rgba(108, 99, 255, 0.2)');
+                grd.addColorStop(1, 'rgba(108, 99, 255, 0.02)');
+                return grd;
+              },
+              tension: 0.4,
+              fill: true,
+              pointRadius: 6,
+              pointHoverRadius: 8,
+              pointBackgroundColor: '#fff',
+              pointBorderWidth: 2,
+              pointBorderColor: 'rgba(108, 99, 255, 0.95)',
+              borderWidth: 2.5
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                mode: 'index',
+                intersect: false,
+                backgroundColor: 'rgba(15, 23, 36, 0.95)',
+                titleColor: '#f1f5f9',
+                bodyColor: 'rgba(169, 178, 205, 0.95)',
+                borderColor: 'rgba(108, 99, 255, 0.3)',
+                borderWidth: 1,
+                padding: 12,
+                displayColors: false,
+                callbacks: {
+                  label: (context) => `Score: ${Math.round(context.parsed.y * 100)}%`
+                }
+              }
+            },
+            scales: {
+              y: {
+                min: 0,
+                max: 1,
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.02)',
+                  drawBorder: false
+                },
+                ticks: {
+                  callback: (v) => Math.round(v * 100) + '%',
+                  color: 'rgba(169, 178, 205, 0.7)'
+                }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: 'rgba(169, 178, 205, 0.7)' }
+              }
+            }
+          }
+        });
+      }
+
+      // Sentiment Chart
+      const sentimentCtx = document.getElementById('sentimentChart');
+      if (sentimentCtx) {
+        const ctx = sentimentCtx.getContext('2d');
+        sentimentChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['Positive', 'Neutral', 'Negative'],
+            datasets: [{
+              label: 'Mentions',
+              data: [12, 8, 5],
+              backgroundColor: [
+                'rgba(16, 185, 129, 0.8)',
+                'rgba(148, 163, 184, 0.8)',
+                'rgba(248, 113, 113, 0.8)'
+              ],
+              borderColor: [
+                'rgba(16, 185, 129, 1)',
+                'rgba(148, 163, 184, 1)',
+                'rgba(248, 113, 113, 1)'
+              ],
+              borderWidth: 1.5,
+              borderRadius: 8,
+              hoverBackgroundColor: [
+                'rgba(16, 185, 129, 1)',
+                'rgba(148, 163, 184, 1)',
+                'rgba(248, 113, 113, 1)'
+              ],
+              barThickness: 'flex',
+              maxBarThickness: 80
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                mode: 'index',
+                backgroundColor: 'rgba(15, 23, 36, 0.95)',
+                titleColor: '#f1f5f9',
+                bodyColor: 'rgba(169, 178, 205, 0.95)',
+                borderColor: 'rgba(108, 99, 255, 0.3)',
+                borderWidth: 1,
+                padding: 12,
+                displayColors: false,
+                callbacks: {
+                  label: (context) => `${context.dataset.label}: ${context.parsed.y} mentions`
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.02)',
+                  drawBorder: false
+                },
+                ticks: {
+                  stepSize: 5,
+                  color: 'rgba(169, 178, 205, 0.7)'
+                }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: 'rgba(169, 178, 205, 0.7)' }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // Initialize charts on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initCharts);
+    } else {
+      initCharts();
+    }
+
+    // =========================
+    // SIMULATION & RECOMMENDATIONS
+    // =========================
+
+    simulateBtn.addEventListener('click', () => {
+      const modal = new bootstrap.Modal(document.getElementById('recommendModal'));
+      modal.show();
+    });
+
+    applyRecommendation.addEventListener('click', applyFlashSaleSimulation);
+
+    function applyFlashSaleSimulation() {
+      if (hasSimulated) {
+        showToast('Simulation already applied. Refresh to reset.', 'info');
+        return;
+      }
+
+      // Update sentiment data
+      const newSentimentData = [20, 10, 3];
+      sentimentChart.data.datasets[0].data = newSentimentData;
+      sentimentChart.update('active');
+
+      // Update persona scores
+      const newScores = personaChart.data.datasets[0].data.map((v, i) => 
+        Math.min(1, v + (i >= selectedIndex ? 0.08 : 0))
+      );
+      personaChart.data.datasets[0].data = newScores;
+      personaChart.update('active');
+
+      // Update sentiment counters
+      document.getElementById('posSentiment').textContent = newSentimentData[0];
+      document.getElementById('neuSentiment').textContent = newSentimentData[1];
+      document.getElementById('negSentiment').textContent = newSentimentData[2];
+
+      hasSimulated = true;
+
+      // Close modal
+      const modalEl = document.getElementById('recommendModal');
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      modal.hide();
+
+      // Show success feedback
+      showToast('✓ Action applied! Sentiment improved by 67%, conversion +15%', 'success');
+    }
+
+    // =========================
+    // TOAST NOTIFICATIONS
+    // =========================
+
+    function showToast(message, type = 'success') {
+      toastMessage.textContent = message;
+      successToast.style.display = 'block';
+      const alert = successToast.querySelector('.alert');
+      alert.className = `alert alert-${type} alert-dismissible fade show mb-0`;
+
+      setTimeout(() => {
+        successToast.style.display = 'none';
+      }, 3000);
+    }
+
+    // =========================
+    // PRINT SAFEGUARD
+    // =========================
+
+    window.addEventListener('beforeprint', () => {
+      if (personaChart) personaChart.resize();
+      if (sentimentChart) sentimentChart.resize();
+    });
+
+    // =========================
+    // KEYBOARD SHORTCUTS
+    // =========================
+
+    window.addEventListener('keydown', (ev) => {
+      // S = open recommendations (only if not in input)
+      if (ev.key.toLowerCase() === 's' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        if (!ev.ctrlKey && !ev.metaKey) {
+          ev.preventDefault();
+          const modal = new bootstrap.Modal(document.getElementById('recommendModal'));
+          modal.show();
+        }
+      }
+      // ? = show shortcuts help
+      if (ev.key === '?') {
+        ev.preventDefault();
+        showToast('📋 Shortcuts: ← → (navigate) | S (actions) | P (print) | C (copy)', 'info');
+      }
+    });
+
+    // =========================
+    // RESPONSIVE CHART RESIZE
+    // =========================
+
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (personaChart) personaChart.resize();
+        if (sentimentChart) sentimentChart.resize();
+      }, 150);
+    });
+
+  </script>
+</body>
+</html>
