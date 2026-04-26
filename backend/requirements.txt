@@ -1,11 +1,16 @@
 # Backend Requirements
 fastapi
-PyJWT
 uvicorn[standard]
 pydantic>=2.7.4
 python-dotenv
 httpx
 tenacity
+
+# Authentication & Security
+PyJWT==2.8.1
+passlib==1.7.4
+bcrypt==4.1.1
+python-multipart==0.0.6
 
 # AI
 langchain

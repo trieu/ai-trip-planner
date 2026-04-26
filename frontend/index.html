@@ -451,7 +451,7 @@
         this.setLoading(true);
 
         try {
-          const response = await fetch(`${this.baseUrl}/plan-trip`, {
+          const response = await fetch(`${this.baseUrl}/api/v1/trips/plan`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)

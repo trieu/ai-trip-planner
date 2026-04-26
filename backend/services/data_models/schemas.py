@@ -6,6 +6,9 @@ from datetime import datetime
 # Trip Planning Models (Existing)
 # ================================
 
+# ================================
+# Data Models (Pydantic)
+# ================================
 class TripRequest(BaseModel):
     """Schema for incoming trip planning requests."""
     destination: str
@@ -17,7 +20,6 @@ class TripRequest(BaseModel):
     session_id: Optional[str] = None
     user_id: Optional[str] = None
     turn_index: Optional[int] = 0
-
 
 class TripResponse(BaseModel):
     """Schema for successful trip plan responses."""

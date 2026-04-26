@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import uuid
 
-from data_models.schemas import (
+from services.data_models.schemas import (
     PersonaReport,
     PersonaReportRequest,
     PersonaReportResponse,
@@ -15,7 +15,10 @@ from data_models.schemas import (
     PersonaTrait,
     DataSourceMetrics,
 )
-from core.config import DATA_DIR, REPORT_TEMPLATE_DIR
+from config import settings
+
+DATA_DIR = settings.PERSONA_DATA_DIR
+REPORT_TEMPLATE_DIR = settings.TEMPLATES_DIR
 
 
 class PersonaService:

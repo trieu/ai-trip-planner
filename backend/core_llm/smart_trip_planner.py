@@ -17,7 +17,7 @@ from openinference.instrumentation import using_attributes
 
 from core_llm.prompt_builder import DEFAULT_BUDGET_LEVEL, build_trip_planner_prompt
 from core_llm.state_models import TripState
-from tools.text_utils import merge_unique_csv
+from tools.text_utils import deduplicate_tool_calls, merge_unique_csv
 from tools.weather_tools import get_current_weather
 from tools.travel_tools import get_costs, get_destination_info
 from services import DataServiceFactory
@@ -45,7 +45,7 @@ LLM_TEMPERATURE = 0.7
 def setup_observability():
     """Initializes OpenTelemetry and Phoenix for tracing LLM calls."""
     default_endpoint = "http://localhost:6006/v1/traces"
-    endpoint = os.getenv("PHOENIX_COLLECTOR_ENDPOINT",default_endpoint)
+    endpoint = os.getenv("PHOENIX_COLLECTOR_ENDPOINT", default_endpoint)
     tracer_provider = TracerProvider()
     tracer_provider.add_span_processor(
         BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
@@ -61,8 +61,8 @@ def safe_attributes(attrs: Dict[str, Any]):
         from contextlib import nullcontext
         return nullcontext()
 
-setup_observability()
 
+setup_observability()
 
 
 # ================================
@@ -86,7 +86,7 @@ class SmartTripPlanner:
         builder.add_node("research", self._research_node)
         builder.add_node("weather", self._weather_node)
         builder.add_node("budget", self._budget_node)
-        builder.add_node("aggregate", lambda state: state)
+        builder.add_node("aggregate", self._aggregate_node)
         builder.add_node("journey_plan", self._journey_plan_node)
 
         # Start
@@ -122,7 +122,8 @@ class SmartTripPlanner:
             with safe_attributes({"service.name": "DataService", "operation": "load_profile", "user.id": user_id}):
                 profile = self.profile_service.get_user_profile(user_id)
 
-        profile.setdefault("current_interests", current_interests.split(",") if current_interests else [])
+        profile.setdefault("current_interests", current_interests.split(
+            ",") if current_interests else [])
         return {"user_profile": profile or {}}
 
     def _research_node(self, state: TripState) -> Dict[str, Any]:
@@ -156,7 +157,7 @@ class SmartTripPlanner:
                 pass
 
         return {"research": summary, "location_coords": location_coords, "tool_calls": calls}
-    
+
     def _weather_node(self, state: TripState) -> Dict[str, Any]:
         """Gathers weather information about the destination."""
 
@@ -191,9 +192,11 @@ class SmartTripPlanner:
             "args": {"location": dest}
         }]
 
+        existing = state.get("tool_calls", [])
+
         return {
             "weather": weather_info,
-            "tool_calls": calls
+            "tool_calls": existing + calls
         }
 
     def _budget_node(self, state: TripState) -> Dict[str, Any]:
@@ -223,11 +226,21 @@ class SmartTripPlanner:
 
         return {"budget": summary, "tool_calls": calls}
 
+    def _aggregate_node(self, state: TripState) -> Dict[str, Any]:
+        """
+        Merge parallel outputs safely and deduplicate tool calls.
+        """
+        tool_calls = state.get("tool_calls", [])
+        deduped_calls = deduplicate_tool_calls(tool_calls)
+        return {
+            "tool_calls": deduped_calls
+        }
+
     def _journey_plan_node(self, state: TripState) -> Dict[str, Any]:
         """Synthesizes research, budget, and profile into a final itinerary."""
 
-        prompt  = build_trip_planner_prompt(state) 
-        
+        prompt = build_trip_planner_prompt(state)
+
         with safe_attributes({"agent.type": "journey_plan"}):
             role = "You are a world-class travel planner creating a personalized itinerary based on user preferences and local insights."
             res = self.llm.invoke([

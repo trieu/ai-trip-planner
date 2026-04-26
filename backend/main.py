@@ -1,48 +1,64 @@
+from contextlib import asynccontextmanager
+import logging
 import os
-from typing import Optional, List, Dict, Any
-from dotenv import load_dotenv, find_dotenv
 
-from tools.auth import get_current_user
+
+
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse  # Added for serving files
 from fastapi.staticfiles import StaticFiles # Added for serving directory assets
-from pydantic import BaseModel
 
-from core_llm.smart_trip_planner import SmartTripPlanner, safe_attributes
+from config import get_settings
 
-# ================================
-# Environment Setup
-# ================================
-load_dotenv(find_dotenv(), override=True)
+# Import route modules
+from api.routes import trip_routes, persona_routes, health_routes, auth_routes
 
-# Define the frontend directory from environment variables or default to "frontend"
-FRONTEND_DIR = os.getenv("FRONTEND_DIR", "../frontend")
 
-# ================================
-# Data Models (Pydantic)
-# ================================
-class TripRequest(BaseModel):
-    """Schema for incoming trip planning requests."""
-    destination: str
-    duration: str
-    budget: Optional[str] = "moderate"
-    interests: Optional[str] = None
-    travel_style: Optional[str] = None
-    user_input: Optional[str] = None
-    session_id: Optional[str] = None
-    user_id: Optional[str] = None
-    turn_index: Optional[int] = 0
 
-class TripResponse(BaseModel):
-    """Schema for successful trip plan responses."""
-    result: str
-    tool_calls: List[Dict[str, Any]] = []
+# ========================================
+# Configuration
+# ========================================
+settings = get_settings()
 
-# ================================
+# Configure logging
+logging.basicConfig(
+    level=settings.LOG_LEVEL,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# ========================================
+# Lifespan Events
+# ========================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Manage application startup and shutdown events.
+    """
+    # Startup
+    logger.info("🚀 Application starting...")
+    logger.info(f"Environment: {settings.ENVIRONMENT}")
+    logger.info(f"LLM Provider: {settings.LLM_PROVIDER}")
+    logger.info(f"API Prefix: {settings.API_PREFIX} | Host: {settings.HOST}:{settings.PORT}")
+    
+    settings.log_config()
+    
+    yield
+    
+    # Shutdown
+    logger.info("🛑 Application shutting down...")
+
+
+# ========================================
 # Application Initialization
-# ================================
-app = FastAPI(title="Gemini Trip Planner API", version="1.0.0")
+# ========================================
+app = FastAPI(
+    title="AI Trip Planner API",
+    description="Personalized travel itinerary planning with AI",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 # Configure CORS for frontend access
 app.add_middleware(
@@ -52,76 +68,121 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Mount the static directory to serve CSS, JS, and Images
-# This makes files in FRONTEND_DIR accessible at /assets/*
-if os.path.exists(FRONTEND_DIR):
-    app.mount("/assets", StaticFiles(directory=FRONTEND_DIR), name="assets")
+# ========================================
+# Static Files
+# ========================================
 
-# Instantiate the engine globally so the graph is only compiled once
-planner = SmartTripPlanner()
+# Serve frontend files
+if os.path.exists(settings.FRONTEND_DIR):
+    app.mount("/assets", StaticFiles(directory=settings.FRONTEND_DIR), name="assets")
+    logger.info(f"✅ Frontend assets mounted from: {settings.FRONTEND_DIR}")
+else:
+    logger.warning(f"⚠️  Frontend directory not found: {settings.FRONTEND_DIR}")
 
-# ================================
-# API Routes
-# ================================
+# ========================================
+# Routes
+# ========================================
 
-@app.get("/")
-@app.get("/index.html")
+API_BASE = f"{settings.API_PREFIX}/{settings.API_VERSION}"
+
+# Health routes
+app.include_router(
+    health_routes.router,
+    prefix=API_BASE,
+    tags=["health"],
+)
+
+# Trip planning routes
+app.include_router(
+    trip_routes.router,
+    prefix=API_BASE,
+    tags=["trips"],
+)
+
+# Auth routes
+app.include_router(
+    auth_routes.router,
+    prefix=settings.API_PREFIX,
+    tags=["auth"],
+)
+
+# Persona report routes
+if settings.ENABLE_PERSONA_REPORTS:
+    app.include_router(
+        persona_routes.router,
+        prefix=API_BASE,
+        tags=["personas"],
+    )
+    
+# ========================================
+# Root Routes
+# ========================================
+
+@app.get("/", include_in_schema=False)
+@app.get("/index.html", include_in_schema=False)
 async def serve_index():
-    """
-    Returns the static index.html from the configured frontend folder.
-    """
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    """Serve the frontend index.html."""
+    index_path = os.path.join(settings.FRONTEND_DIR, "index.html")
     
     if not os.path.exists(index_path):
-        # Fallback message if the file is missing
-        return {"message": "Frontend index.html not found. Check FRONTEND_DIR config."}
-        
+        logger.error(f"Frontend index.html not found: {index_path}")
+        return {
+            "error": "Frontend not found",
+            "detail": f"Check FRONTEND_DIR config: {settings.FRONTEND_DIR}"
+        }
+    
     return FileResponse(index_path)
 
-@app.post("/plan-trip", response_model=TripResponse)
-async def plan_trip(req: TripRequest):
-    """
-    Endpoint to generate a personalized trip itinerary.
-    Triggers the LangGraph workflow via SmartTripPlanner.
-    """
-    
-    # Setup the initial state for LangGraph
-    initial_state = {
-        "messages": [],
-        "trip_request": req.model_dump(),
-        "tool_calls": [],
-        "user_profile": {},
-    }
+# ========================================
+# Error Handlers
+# ========================================
 
-    # Execute with telemetry wrappers
-    with safe_attributes({
-        "session.id": req.session_id or "default",
-        "user.id": req.user_id or "anonymous",
-        "endpoint": "/plan-trip"
-    }):
-        try:
-            # Trigger the AI graph
-            result = planner.invoke(initial_state)
-
-            return TripResponse(
-                result=result.get("final", "Failed to generate journey plan."),
-                tool_calls=result.get("tool_calls", [])
-            )
-
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/profile")
-async def get_profile(user=Depends(get_current_user)):
-    # TODO: Implement actual profile retrieval logic    
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    """Global exception handler for unhandled errors."""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return {
-        "message": "secure data",
-        "user": user
+        "error": "Internal Server Error",
+        "detail": str(exc) if settings.is_development else "An error occurred"
     }
+    
+# ========================================
+# Startup Checks
+# ========================================
+
+@app.on_event("startup")
+async def startup_checks():
+    """Perform startup validation checks."""
+    logger.info("🔍 Running startup checks...")
+    
+    # Check API keys
+    if settings.LLM_PROVIDER == "OPENAI" and not settings.OPENAI_API_KEY:
+        logger.error("❌ OPENAI_API_KEY not set but LLM_PROVIDER=OPENAI")
+        raise RuntimeError("Missing OPENAI_API_KEY")
+    
+    if settings.LLM_PROVIDER == "GOOGLE_GEMINI" and not settings.GOOGLE_GEMINI_API_KEY:
+        logger.error("❌ GOOGLE_GEMINI_API_KEY not set but LLM_PROVIDER=GOOGLE_GEMINI")
+        raise RuntimeError("Missing GOOGLE_GEMINI_API_KEY")
+    
+    # Check data directories
+    os.makedirs(settings.PERSONA_DATA_DIR, exist_ok=True)
+    os.makedirs(settings.REPORTS_DATA_DIR, exist_ok=True)
+    os.makedirs(settings.TEMPLATES_DIR, exist_ok=True)
+    logger.info("✅ Data directories ready")
+    
+    logger.info("✅ Startup checks passed")
+
+# ========================================
+# Main Entry Point
+# ========================================
 
 if __name__ == "__main__":
     import uvicorn
-    # Start the server on port 8000
-    HOST = os.getenv("HOST", "0.0.0.0")
-    PORT = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host=HOST, port=PORT)
+    
+    uvicorn.run(
+        app,
+        host=settings.HOST,
+        port=settings.PORT,
+        workers=settings.WORKERS if settings.is_production else 1,
+        log_level=settings.LOG_LEVEL.lower(),
+    )

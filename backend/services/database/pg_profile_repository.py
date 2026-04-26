@@ -109,7 +109,7 @@ from typing import List, Dict, Any, Union, Optional
 import psycopg
 from sqlalchemy.orm import Session
 
-from data_models.pg_profile import PGProfileUpsert
+from services.data_models.pg_profile  import PGProfileUpsert
 
 logger = logging.getLogger(__name__)
 

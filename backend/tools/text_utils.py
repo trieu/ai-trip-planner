@@ -108,3 +108,20 @@ def merge_unique_csv(prof: dict, *keys: str, sep: str = ', ') -> str:
                 merged.append(s)
 
     return sep.join(merged)
+
+
+def deduplicate_tool_calls(calls: list[dict]) -> list[dict]:
+    '''Deduplicate tool calls based on 'tool' and sorted 'args' content.'''
+    seen = set()
+    unique = []
+
+    for c in calls:
+        key = (
+            c.get("tool"),
+            tuple(sorted(c.get("args", {}).items()))
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(c)
+
+    return unique

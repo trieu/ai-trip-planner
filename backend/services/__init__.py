@@ -5,6 +5,8 @@ from .pgsql_service import PostgresProfileService
 from .base_service import BaseProfileService, require_env
 from .mock_test_service import MockProfileService
 
+from .persona_service import PersonaService
+
 # Define what is accessible when someone imports * from services
 __all__ = [
     "DataServiceFactory", 
@@ -12,5 +14,6 @@ __all__ = [
     "PostgresProfileService", 
     "BaseProfileService", 
     "require_env",
-    "MockProfileService"
+    "MockProfileService",
+    "PersonaService"
 ]
