@@ -1,16 +1,22 @@
 # Backend Requirements
 fastapi
+fastapi-limiter
 uvicorn[standard]
-pydantic>=2.7.4
 python-dotenv
 httpx
 tenacity
 
+# Data validation and settings management
+# Email utilities for user notifications and alerts
+pydantic>=2.7.4
+pydantic-settings
+pydantic[email]
+
 # Authentication & Security
-PyJWT==2.8.1
-passlib==1.7.4
-bcrypt==4.1.1
-python-multipart==0.0.6
+PyJWT
+passlib
+bcrypt
+python-multipart
 
 # AI
 langchain
@@ -29,17 +35,21 @@ openinference-instrumentation-langchain
 
 # Database
 sqlalchemy>=2.0
+greenlet # Required for SQLAlchemy async support
 asyncpg # Async driver for PostgreSQL, required by SQLAlchemy for async operations
 psycopg[binary] # Synchronous driver for PostgreSQL
 pgvector # For vector search capabilities in PostgreSQL
-greenlet # Required for SQLAlchemy async support
 
 # Cache
 redis>=5  
 
+# Distributed task queue with Redis as broker
+# Used for async jobs: embeddings, campaign execution, batch processing
+dramatiq[redis, watch]
+
 # Development & Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
-black==23.12.0
-flake8==6.1.0
-mypy==1.7.1
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+black>=23.12.0
+flake8>=6.1.0
+mypy>=1.7.1

@@ -10,6 +10,8 @@ import logging
 from services.data_models.schemas import TripRequest, TripResponse
 from config import get_settings
 
+from tasks.agent_tasks import generate_trip_plan
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/trips")
 settings = get_settings()
@@ -111,3 +113,19 @@ async def get_trip(trip_id: str):
     except Exception as e:
         logger.error(f"Error retrieving trip: {str(e)}")
         raise HTTPException(status_code=404, detail="Trip not found")
+
+# ========================================
+# Test Route for Agent Task
+# ========================================
+@router.post("/test-agent")
+async def plan_trip(payload: TripRequest):
+    """
+    Fire-and-forget async agent execution
+    """
+    generate_trip_plan.send(payload.user_id, payload.destination)
+
+    return {
+        "status": "queued",
+        "user_id": payload.user_id,
+        "message": "Trip planning started"
+    }

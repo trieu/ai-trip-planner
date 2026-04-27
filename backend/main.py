@@ -2,9 +2,7 @@ from contextlib import asynccontextmanager
 import logging
 import os
 
-
-
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse  # Added for serving files
 from fastapi.staticfiles import StaticFiles # Added for serving directory assets
@@ -171,6 +169,7 @@ async def startup_checks():
     logger.info("✅ Data directories ready")
     
     logger.info("✅ Startup checks passed")
+
 
 # ========================================
 # Main Entry Point

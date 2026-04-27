@@ -12,7 +12,7 @@ from datetime import datetime
 class TripRequest(BaseModel):
     """Schema for incoming trip planning requests."""
     destination: str
-    duration: str
+    duration: Optional[str] = "3 days"
     budget: Optional[str] = "moderate"
     interests: Optional[str] = None
     travel_style: Optional[str] = None
