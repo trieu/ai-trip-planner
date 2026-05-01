@@ -46,14 +46,32 @@ This system demonstrates how to build "Privacy-First" personalized AI by integra
         ┌────────────────────────┼────────────────────────┐
         │                        │                        │
    ┌────▼─────┐           ┌──────▼─────┐           ┌──────▼─────┐
-   │ Research │           │   Budget   │           │   Local    │
+   │ Research │           │   Budget   │           │   Weather  │
    │  Agent   │           │   Agent    │           │   Agent    │
    └────┬─────┘           └──────┬─────┘           └──────┬─────┘
         │                        │                        │
-        │ Tools:                 │ Tools:                 │ RAG Engine:
-        │ • Weather/Visa         │ • Cost Analysis        │ • PGVector
-        │ • Safety Info          │ • Exchange Rates       │ • Local Gems
         │                        │                        │
+        │                        │                        │
+        │   ┌────────────────────▼──────────────────┐     │
+        │   │   Knowledge Database (Postgres 16)    │     │
+        │   │  - pgvector similarity search         │     │
+        │   │  - destination info (POIs, safety)    │     │
+        │   │  - cost data (food, hotel, transport) │     │
+        │   │  - metadata (budget tiers, tags)      │     │
+        │   └────────────────────┬──────────────────┘     │
+        │                        │                        │
+        │                        │                        │
+        │                        │                        │
+        │                        │              ┌─────────▼─────────┐
+        │                        │              │ Weather API Layer │
+        │                        │              │ (real-time)       │
+        │                        │              └─────────┬─────────┘
+        │                        │                        │
+        │                        │              ┌─────────▼─────────┐
+        │                        │              │ Cache (Redis)     │
+        │                        │              │ TTL: 10–30 mins   │
+        │                        │              └───────────────────┘
+        │                        │
         └────────────────────────┼────────────────────────┘
                                  │
                           ┌──────▼──────┐
