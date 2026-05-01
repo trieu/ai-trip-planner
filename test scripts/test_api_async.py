@@ -19,7 +19,7 @@ async def call_api(client, user_id: str):
         "language": "Vietnamese"
     }
 
-    resp = await client.post("/plan-trip", json=payload)
+    resp = await client.post("/api/v1/trips/plan", json=payload)
     return {
         "user_id": user_id,
         "status": resp.status_code,

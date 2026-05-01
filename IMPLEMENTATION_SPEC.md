@@ -83,7 +83,7 @@ if _TRACING:
     except Exception:
         pass
 
-@app.post("/plan-trip", response_model=TripResponse)
+@app.post("/api/v1/trips/plan", response_model=TripResponse)
 def plan_trip(req: TripRequest):
     # Request handler no longer initializes tracing
     graph = build_graph()
@@ -189,7 +189,7 @@ test_request = {
     'interests': 'art, food, history'
 }
 
-response = requests.post(f'{API_BASE_URL}/plan-trip', json=test_request, timeout=60)
+response = requests.post(f'{API_BASE_URL}/api/v1/trips/plan', json=test_request, timeout=60)
 print(f"Status: {response.status_code}")
 print(f"Response time: {response.elapsed.total_seconds():.1f}s")
 ```

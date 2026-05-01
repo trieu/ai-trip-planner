@@ -115,7 +115,7 @@ cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ### 6. ENDPOINTS
 
 - Frontend: http://localhost:8000/index.html
-- API: http://localhost:8000/plan-trip
+- API: http://localhost:8000/api/v1/trips/plan
 - Docs: http://localhost:8000/docs
 
 Docker (optional)
@@ -126,6 +126,7 @@ docker-compose up --build
 
 
 ## Project Structure
+
 - `backend/`: FastAPI app (`main.py`), LangGraph agents, tracing hooks.
 - `backend/services/`: The OOP Data Service layer (Strategy Pattern).
 - `frontend/index.html`: Minimal static UI served by backend at `/`.
@@ -134,15 +135,24 @@ docker-compose up --build
 - Root: `start.sh`, `docker-compose.yml`, `README.md`.
 
 ## Development Commands
+
 - Backend (dev): `uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
 - API smoke test: `python "test scripts"/test_api.py`
 - Synthetic evals: `python "test scripts"/synthetic_data_gen.py --base-url http://localhost:8000 --count 12`
 
 ## API
-- POST `/plan-trip` → returns a generated journey plan.
+
+- POST `/api/v1/trips/plan` → returns a generated journey plan.
   Example body:
   ```json
-  {"destination":"Tokyo, Japan","duration":"7 days","budget":"$2000","interests":"food, culture"}
+  {
+      "destination":"Tokyo, Japan",
+      "duration":"7 days",
+      "budget":"$2000",
+      "interests":"food, culture",
+      "user_id": "demo_user_001",
+      "session_id": "web_debug_session"
+   }
   ```
 - GET `/health` → simple status.
 
@@ -166,7 +176,7 @@ See `RAG.md` for detailed documentation.
 
 Tools can call real web search APIs (Tavily or SerpAPI) for up-to-date travel information:
 
-- **Enable**: Add `TAVILY_API_KEY` or `SERPAPI_API_KEY` to your `.env` file
+- **Enable**: Add `TAVILY_API_KEY` to your `.env` file
 - **Benefits**: Real-time data for weather, attractions, prices, customs, etc.
 - **Fallback**: Without API keys, tools automatically fall back to LLM-generated responses
 - **Learning**: Demonstrates graceful degradation and multi-tier fallback patterns

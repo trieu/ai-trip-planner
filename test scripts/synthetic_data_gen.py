@@ -2,7 +2,7 @@
 """
 Synthetic generator focused on provoking bad tool calls for demoing Arize Evals.
 
-- Sends crafted requests to /plan-trip to encourage wrong/misaligned tool use
+- Sends crafted requests to /api/v1/trips/plan to encourage wrong/misaligned tool use
 - Captures tool_calls returned by the backend and flags likely mistakes
 - Saves a concise JSON report you can correlate with Arize traces
 
@@ -147,7 +147,7 @@ def scenarios_bad_tool_calls() -> List[Dict[str, Any]]:
 
 
 def post_plan_trip(base_url: str, payload: Dict[str, Any], timeout: int = 60) -> Dict[str, Any]:
-    url = f"{base_url.rstrip('/')}/plan-trip"
+    url = f"{base_url.rstrip('/')}/api/v1/trips/plan"
     r = requests.post(url, json=payload, timeout=timeout)
     try:
         data = r.json()

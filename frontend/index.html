@@ -264,9 +264,12 @@
 
               <div class="form-floating mb-3">
                 <select class="form-select" id="budget">
+                  <option value="ultra_budget" data-i18n="optUltraBudget">Ultra Budget (Minimum spend)</option>
                   <option value="budget" data-i18n="optBudget">Budget (Save more)</option>
-                  <option value="moderate" selected data-i18n="optMod">Moderate (Balanced)</option>
-                  <option value="luxury" data-i18n="optLux">Luxury (Premium)</option>
+                  <option value="economy" data-i18n="optEconomy">Economy (Low cost)</option>
+                  <option value="moderate" selected data-i18n="optModerate">Moderate (Balanced)</option>
+                  <option value="premium" data-i18n="optPremium">Premium (High comfort)</option>
+                  <option value="luxury" data-i18n="optLuxury">Luxury (Top-tier)</option>
                 </select>
                 <label for="budget"><i data-lucide="piggy-bank" class="me-1" width="16"></i> <span
                     data-i18n="lblBudget">Budget Style</span></label>
@@ -343,38 +346,93 @@
           en: {
             appTitle: "Trip Planner",
             heroTitle: "Plan Your Perfect Trip",
-            heroSub: "Discover destinations, craft smart budgets, and get a personalized day-by-day journey plan in seconds.",
-            tagFast: "Plan faster", tagRoutes: "Smarter routes", tagGems: "Local gems",
-            featResearch: "Research", featResearchSub: "Weather, highlights.",
-            featItin: "Itineraries", featItinSub: "Day-by-day schedules.",
-            featBudget: "Budget", featBudgetSub: "Smart spend suggestions.",
-            featLocal: "Local", featLocalSub: "Authentic hidden gems.",
-            formTitle: "Plan Your Trip", formSub: "Enter destination, days, budget, and interests.",
-            lblDest: "Destination", lblDur: "Duration (days)", lblBudget: "Budget Style", lblInt: "Interests",
-            optBudget: "Budget (Save more)", optMod: "Moderate (Balanced)", optLux: "Luxury (Premium)",
-            btnSubmit: "Plan My Trip", loading: "Planning...",
-            phTitle: "Fill out the form to get started",
-            phSub: "Your personalized, AI-generated itinerary will appear right here.",
-            resTitle: "Your Itinerary", btnCopy: "Copy", btnPrint: "Print",
-            errGeneral: "An error occurred while generating your plan. Please try again."
+            heroSub: "Discover destinations, plan smarter budgets, and get a personalized day-by-day itinerary in seconds.",
+
+            tagFast: "Plan faster",
+            tagRoutes: "Smarter routes",
+            tagGems: "Hidden gems",
+
+            featResearch: "Research",
+            featResearchSub: "Weather, highlights, and tips.",
+            featItin: "Itineraries",
+            featItinSub: "Smart day-by-day plans.",
+            featBudget: "Budget",
+            featBudgetSub: "Optimized spending.",
+            featLocal: "Local",
+            featLocalSub: "Authentic experiences.",
+
+            formTitle: "Plan Your Trip",
+            formSub: "Enter your destination, duration, budget, and interests.",
+
+            lblDest: "Destination",
+            lblDur: "Duration (days)",
+            lblBudget: "Budget Style",
+            lblInt: "Interests",
+
+            optUltraBudget: "Ultra Budget (Bare minimum)",
+            optBudget: "Budget (Save money)",
+            optEconomy: "Economy (Low cost, good value)",
+            optModerate: "Moderate (Balanced comfort)",
+            optPremium: "Premium (High comfort)",
+            optLuxury: "Luxury (Top-tier experience)",
+
+            btnSubmit: "Plan My Trip",
+            loading: "Planning your trip...",
+
+            phTitle: "Start by filling out the form",
+            phSub: "Your AI-generated itinerary will appear here.",
+
+            resTitle: "Your Itinerary",
+            btnCopy: "Copy",
+            btnPrint: "Print",
+
+            errGeneral: "Something went wrong while generating your plan. Please try again."
           },
+
           vi: {
-            appTitle: "Lên Lịch Trình với AI ",
+            appTitle: "Lên Lịch Trình với AI",
             heroTitle: "Lên Kế Hoạch Chuyến Đi Hoàn Hảo",
-            heroSub: "Khám phá điểm đến, lập ngân sách thông minh và nhận lịch trình cá nhân hóa từng ngày chỉ trong vài giây.",
-            tagFast: "Lên lịch nhanh", tagRoutes: "Tuyến đường thông minh", tagGems: "Địa điểm ẩn mình",
-            featResearch: "Nghiên cứu", featResearchSub: "Thời tiết, điểm nổi bật.",
-            featItin: "Lịch trình", featItinSub: "Kế hoạch từng ngày.",
-            featBudget: "Ngân sách", featBudgetSub: "Gợi ý chi tiêu thông minh.",
-            featLocal: "Địa phương", featLocalSub: "Khám phá những điểm đến độc đáo.",
-            formTitle: "Lên Kế Hoạch", formSub: "Nhập điểm đến, số ngày, ngân sách và sở thích.",
-            lblDest: "Điểm đến", lblDur: "Thời gian (ngày)", lblBudget: "Phong cách chi tiêu", lblInt: "Sở thích",
-            optBudget: "Tiết kiệm", optMod: "Vừa phải (Cân bằng)", optLux: "Cao cấp (Sang trọng)",
-            btnSubmit: "Tạo Lịch Trình", loading: "Đang xử lý...",
-            phTitle: "Điền thông tin để bắt đầu",
-            phSub: "Lịch trình chuyến đi do AI tạo ra sẽ hiển thị tại đây.",
-            resTitle: "Lịch Trình Của Bạn", btnCopy: "Sao chép", btnPrint: "In",
-            errGeneral: "Đã xảy ra lỗi khi tạo lịch trình. Vui lòng thử lại."
+            heroSub: "Khám phá điểm đến, tối ưu ngân sách và nhận lịch trình cá nhân hóa từng ngày chỉ trong vài giây.",
+
+            tagFast: "Lên kế hoạch nhanh",
+            tagRoutes: "Tối ưu lộ trình",
+            tagGems: "Địa điểm độc đáo",
+
+            featResearch: "Khám phá",
+            featResearchSub: "Thời tiết, điểm nổi bật, mẹo hữu ích.",
+            featItin: "Lịch trình",
+            featItinSub: "Kế hoạch từng ngày thông minh.",
+            featBudget: "Ngân sách",
+            featBudgetSub: "Chi tiêu tối ưu.",
+            featLocal: "Trải nghiệm",
+            featLocalSub: "Đậm chất địa phương.",
+
+            formTitle: "Lên Kế Hoạch Chuyến Đi",
+            formSub: "Nhập điểm đến, số ngày, ngân sách và sở thích.",
+
+            lblDest: "Điểm đến",
+            lblDur: "Thời gian (ngày)",
+            lblBudget: "Mức chi tiêu",
+            lblInt: "Sở thích",
+
+            optUltraBudget: "Siêu tiết kiệm (Chi tiêu tối thiểu)",
+            optBudget: "Tiết kiệm (Giảm chi phí)",
+            optEconomy: "Kinh tế (Chi phí thấp, hợp lý)",
+            optModerate: "Vừa phải (Cân bằng tiện nghi)",
+            optPremium: "Cao cấp (Thoải mái cao)",
+            optLuxury: "Sang trọng (Trải nghiệm cao cấp)",
+
+            btnSubmit: "Tạo Lịch Trình",
+            loading: "Đang lên kế hoạch...",
+
+            phTitle: "Bắt đầu bằng cách nhập thông tin",
+            phSub: "Lịch trình do AI tạo sẽ hiển thị tại đây.",
+
+            resTitle: "Lịch Trình Của Bạn",
+            btnCopy: "Sao chép",
+            btnPrint: "In",
+
+            errGeneral: "Có lỗi xảy ra khi tạo lịch trình. Vui lòng thử lại."
           }
         };
 

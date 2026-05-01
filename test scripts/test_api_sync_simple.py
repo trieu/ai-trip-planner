@@ -19,7 +19,7 @@ def test_plan_trip():
     }
 
     try:
-        response = httpx.post(f"{BASE_URL}/plan-trip", json=payload, timeout=30.0)
+        response = httpx.post(f"{BASE_URL}/api/v1/trips/plan", json=payload, timeout=30.0)
 
         print(f"Status: {response.status_code}")
         print("Response:")
