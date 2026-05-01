@@ -19,80 +19,60 @@ This system demonstrates how to build "Privacy-First" personalized AI by integra
 
 ## 🏗️ System Architecture
 
-![Project Flow](project-flow.png)
 
+```mermaid
+graph TD
+    %% Entry Layer
+    subgraph Gateway [The Request Gateway]
+        Input([TripRequest Pydantic Model]) -- destination, budget, user_id --> API[FastAPI Endpoints]
+        API -- session_id / trace_id --> Trace[[Arize Phoenix Tracing]]
+    end
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                        User Request                             │
-│               (destination, duration, user_id)                  │
-└────────────────────────────────┬────────────────────────────────┘
-                                 │
-                   ┌─────────────▼─────────────┐
-                   │    FastAPI + Phoenix      │
-                   │    Session & Trace ID     │
-                   └─────────────┬─────────────┘
-                                 │
-                   ┌─────────────▼─────────────┐
-                   │   LangGraph Workflow      │
-                   │   (Entry: START Node)     │
-                   └─────────────┬─────────────┘
-                                 │
-                   ┌─────────────▼─────────────┐
-                   │    Data Service Loader    │
-                   │  (LEO CDP / Postgres 16)  │
-                   └─────────────┬─────────────┘
-                                 │
-        ┌────────────────────────┼────────────────────────┐
-        │                        │                        │
-   ┌────▼─────┐           ┌──────▼─────┐           ┌──────▼─────┐
-   │ Research │           │   Budget   │           │   Weather  │
-   │  Agent   │           │   Agent    │           │   Agent    │
-   └────┬─────┘           └──────┬─────┘           └──────┬─────┘
-        │                        │                        │
-        │                        │                        │
-        │                        │                        │
-        │   ┌────────────────────▼──────────────────┐     │
-        │   │   Knowledge Database (Postgres 16)    │     │
-        │   │  - pgvector similarity search         │     │
-        │   │  - destination info (POIs, safety)    │     │
-        │   │  - cost data (food, hotel, transport) │     │
-        │   │  - metadata (budget tiers, tags)      │     │
-        │   └────────────────────┬──────────────────┘     │
-        │                        │                        │
-        │                        │                        │
-        │                        │                        │
-        │                        │              ┌─────────▼─────────┐
-        │                        │              │ Weather API Layer │
-        │                        │              │ (real-time)       │
-        │                        │              └─────────┬─────────┘
-        │                        │                        │
-        │                        │              ┌─────────▼─────────┐
-        │                        │              │ Cache (Redis)     │
-        │                        │              │ TTL: 10–30 mins   │
-        │                        │              └───────────────────┘
-        │                        │
-        └────────────────────────┼────────────────────────┘
-                                 │
-                          ┌──────▼──────┐
-                          │  Itinerary  │
-                          │   Agent     │
-                          │ (Synthesis) │
-                          └──────┬──────┘
-                                 │
-                   ┌─────────────▼─────────────┐
-                   │   JSON / Markdown Output  │
-                   │   + Tool Trace Metadata   │
-                   └───────────────────────────┘
+    %% Intelligence Layer
+    subgraph Core_Brain [LangGraph Orchestration]
+        START((START)) --> LP[load_profile Node]
+        
+        %% Hydration Logic
+        LP -- Queries cdp_profiles --> CDP[(LEO CDP: Postgres)]
+        CDP -- Hydrates State --> HydratedState[State: Profiles + Interests]
 
-     Tracing & Evals → Arize Phoenix (Local OTLP:6006)
+        %% Parallel Execution
+        HydratedState --> RA[Research Agent Node]
+        HydratedState --> BA[Budget Agent Node]
+        HydratedState --> WA[Weather Agent Node]
+
+        %% Synthesis
+        RA & BA & WA --> AGG[Aggregate Node]
+        AGG --> JP[Journey Plan Node]
+        JP --> END((END))
+    end
+
+    %% Data Strategy Layer
+    subgraph Knowledge_Memory [Self-Improving Memory Tier]
+        %% Research & Budget Logic
+        RA & BA -- RAG Logic --> RAG_S[TravelRAGService]
+        
+        RAG_S -- Vector Search --> KDB[(Knowledge DB: Postgres 16)]
+        KDB -.-> PGV[pgvector: Cosine Distance Search]
+        
+        %% Fallback Logic
+        RAG_S -- No Result --> Web[Web Search API]
+        Web -- Upsert Knowledge --> KDB
+    end
+
+   %% Third-party Data Layer
+    subgraph Realtime_Data_Sources [API Call]
+        %% Real-time Logic
+        WA -- Live Fetch --> W_API[Weather API Layer]
+        W_API -- Cache --> Redis[(Redis Cache)]
+    end
+
+    %% Output Layer
+    END --> FinalOut[/TripResponse: Markdown + Tool Trace/]
 ```
 
+
 ---
-
-## 🛠️ Quickstart with Google Colab 
-
-https://colab.research.google.com/drive/1KaLKUzFPC7uECGAHDZ7xW1LzjbdpiqQO?usp=sharing
 
 ## 🛠️ Quickstart with local python code
 
@@ -113,14 +93,7 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
-
-### 4. Terminal 1: Start Phoenix for Tracing
-```bash
-# Terminal 1: Start Phoenix for Tracing
-python -m phoenix.server.main serve
-
-```
-### 5. Terminal 2: Run the AI service
+### 4. Terminal
 
 ```bash
 # make sure you are back in the root directory of ai-trip-planner
@@ -130,7 +103,7 @@ cd ..
 cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 6. ENDPOINTS
+### 5. ENDPOINTS
 
 - Frontend: http://localhost:8000/index.html
 - API: http://localhost:8000/api/v1/trips/plan
@@ -148,7 +121,6 @@ docker-compose up --build
 - `backend/`: FastAPI app (`main.py`), LangGraph agents, tracing hooks.
 - `backend/services/`: The OOP Data Service layer (Strategy Pattern).
 - `frontend/index.html`: Minimal static UI served by backend at `/`.
-- `optional/airtable/`: Airtable integration (optional, not on critical path).
 - `test scripts/`: `test_api.py`, `synthetic_data_gen.py` for quick checks/evals.
 - Root: `start.sh`, `docker-compose.yml`, `README.md`.
 
@@ -325,4 +297,3 @@ Students have successfully adapted this codebase for:
 
 ---
 **Updated by Triều** | *Expertise in LEO CDP, RAG, and AI-Native Systems.*
-
