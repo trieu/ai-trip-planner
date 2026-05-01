@@ -6,6 +6,9 @@ from .base_service import BaseProfileService, require_env
 from .mock_test_service import MockProfileService
 
 from .persona_service import PersonaService
+from .knowledge_service import KnowledgeGraphService
+from .travel_rag_service import TravelRAGService
+from .pgsql_service import build_pg_dsn
 
 # Define what is accessible when someone imports * from services
 __all__ = [
@@ -15,5 +18,8 @@ __all__ = [
     "BaseProfileService", 
     "require_env",
     "MockProfileService",
-    "PersonaService"
+    "PersonaService",
+    "KnowledgeGraphService",
+    "TravelRAGService",
+    "build_pg_dsn"
 ]

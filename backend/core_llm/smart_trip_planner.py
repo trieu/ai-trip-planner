@@ -3,7 +3,6 @@ from typing import Dict, Any
 
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END, START
-from langgraph.prebuilt import ToolNode
 
 from core_llm.prompt_builder import DEFAULT_BUDGET_LEVEL, build_trip_planner_prompt
 from core_llm.state_models import TripState
@@ -17,29 +16,21 @@ from tools.travel_tools import get_costs, get_destination_info
 from services import DataServiceFactory
 from meta_llm import MetaLLM
 
-
 # ============================================================
 # Logging
 # ============================================================
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(SERVICE_NAME)
 
-if Settings().ENABLE_TELEMETRY:
-    logger.info("Telemetry enabled for AI observability, PHOENIX_COLLECTOR_ENDPOINT: %s",
-                Settings().PHOENIX_COLLECTOR_ENDPOINT)
-    setup_observability()
-
 
 class SmartTripPlanner:
     """
     LangGraph-based orchestrator for trip planning.
 
-    Responsibilities:
-    - Load user profile
-    - Gather research data
-    - Fetch weather
-    - Estimate budget
-    - Generate itinerary
+    FIXED:
+    - Removed ToolNode (source of config errors)
+    - Direct async tool execution
+    - Stable async pipeline
     """
 
     def __init__(self):
@@ -62,12 +53,11 @@ class SmartTripPlanner:
 
         builder.add_edge(START, "load_profile")
 
-        # Parallel branches
+        # Parallel execution
         builder.add_edge("load_profile", "research")
         builder.add_edge("load_profile", "weather")
         builder.add_edge("load_profile", "budget")
 
-        # Fan-in
         builder.add_edge("research", "aggregate")
         builder.add_edge("weather", "aggregate")
         builder.add_edge("budget", "aggregate")
@@ -82,7 +72,6 @@ class SmartTripPlanner:
     # ============================================================
 
     def _profile_node(self, state: TripState) -> Dict[str, Any]:
-        """Load user profile safely."""
         user_id = state["trip_request"].get("user_id")
         interests = state["trip_request"].get("interests")
 
@@ -100,7 +89,6 @@ class SmartTripPlanner:
         return {"user_profile": profile}
 
     def _weather_node(self, state: TripState) -> Dict[str, Any]:
-        """Fetch weather with defensive validation."""
         dest = state.get("trip_request", {}).get("destination")
 
         if not dest or not isinstance(dest, str):
@@ -118,69 +106,64 @@ class SmartTripPlanner:
             "tool_calls": [{"tool": "get_current_weather", "args": {"location": dest}}]
         }
 
-    def _research_node(self, state: TripState) -> Dict[str, Any]:
-        """Fetch destination information via tool."""
+    # ============================================================
+    # ✅ RESEARCH NODE (FIXED)
+    # ============================================================
+    async def _research_node(self, state: TripState) -> Dict[str, Any]:
         dest = state["trip_request"]["destination"]
 
-        # Bind tool with required choice to ensure it's used if the agent tries to skip
-        agent = self.llm.bind_tools(
-            [get_destination_info], tool_choice="required")
-
-        with safe_attributes({"agent.type": AGENT_RESEARCH}):
-            res = agent.invoke([
-                SystemMessage(content=f"Travel info for {dest}"),
-                HumanMessage(content="Execute")
-            ])
-
-        summary = res.content
+        summary = ""
         calls = []
 
-        if getattr(res, "tool_calls", None):
-            try:
-                tool_res = ToolNode([get_destination_info]
-                                    ).invoke({"messages": [res]})
-                summary = tool_res["messages"][-1].content
-                calls.append({"tool": "get_destination_info",
-                             "args": {"destination": dest}})
-            except Exception as e:
-                logger.warning(f"[research_node] tool failed: {e}")
+        try:
+            # 🔥 DIRECT TOOL CALL (NO ToolNode)
+            summary = await get_destination_info.ainvoke({
+                "destination": dest
+            })
+
+            calls.append({
+                "tool": "get_destination_info",
+                "args": {"destination": dest}
+            })
+
+        except Exception as e:
+            logger.error(f"[research_node] tool failed: {e}")
+            summary = "Failed to fetch destination info."
 
         return {"research": summary, "tool_calls": calls}
 
-    def _budget_node(self, state: TripState) -> Dict[str, Any]:
-        """Estimate travel cost."""
+    # ============================================================
+    # ✅ BUDGET NODE (FIXED)
+    # ============================================================
+    async def _budget_node(self, state: TripState) -> Dict[str, Any]:
         dest = state["trip_request"]["destination"]
         lvl = state["trip_request"].get("budget", DEFAULT_BUDGET_LEVEL)
 
-        # Bind tool with required choice to ensure it's used if the agent tries to skip
-        agent = self.llm.bind_tools([get_costs], tool_choice="required")
-
-        with safe_attributes({"agent.type": AGENT_BUDGET}):
-            res = agent.invoke([
-                SystemMessage(content=f"Estimate costs for {dest} at {lvl}"),
-                HumanMessage(content="Execute")
-            ])
-
-        summary = res.content
+        summary = ""
         calls = []
 
-        if getattr(res, "tool_calls", None):
-            try:
-                tool_res = ToolNode([get_costs]).invoke({"messages": [res]})
-                summary = tool_res["messages"][-1].content
-                calls.append({"tool": "get_costs", "args": {
-                             "destination": dest, "budget_level": lvl}})
-            except Exception as e:
-                logger.warning(f"[budget_node] tool failed: {e}")
+        try:
+            summary = await get_costs.ainvoke({
+                "destination": dest,
+                "budget_level": lvl
+            })
+
+            calls.append({
+                "tool": "get_costs",
+                "args": {"destination": dest, "budget_level": lvl}
+            })
+
+        except Exception as e:
+            logger.error(f"[budget_node] tool failed: {e}")
+            summary = "Failed to estimate costs."
 
         return {"budget": summary, "tool_calls": calls}
 
+    # ============================================================
     def _aggregate_node(self, state: TripState) -> Dict[str, Any]:
-        """Merge and deduplicate tool calls."""
         return {"tool_calls": deduplicate_tool_calls(state.get("tool_calls", []))}
 
     def _journey_plan_node(self, state: TripState) -> Dict[str, Any]:
-        """Generate final itinerary."""
         prompt = build_trip_planner_prompt(state)
 
         with safe_attributes({"agent.type": AGENT_JOURNEY}):
@@ -195,6 +178,5 @@ class SmartTripPlanner:
     # Public API
     # ============================================================
 
-    def invoke(self, state: dict) -> dict:
-        """Run full pipeline."""
-        return self.app.invoke(state)
+    async def invoke(self, state: dict) -> dict:
+        return await self.app.ainvoke(state)

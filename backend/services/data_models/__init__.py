@@ -11,8 +11,11 @@ from .schemas import (
     PersonaTrait,
     SocialMediaSignal,
     FirstPartyDataSignal,
-    MarketResearchSignal,
+    MarketResearchSignal
 )
+
+from .travel_knowledge import TravelKnowledge
+from .pg_profile import PGProfileUpsert  
 
 __all__ = [
     "TripRequest",
@@ -28,4 +31,6 @@ __all__ = [
     "SocialMediaSignal",
     "FirstPartyDataSignal",
     "MarketResearchSignal",
+    "TravelKnowledge",
+    "PGProfileUpsert"
 ]

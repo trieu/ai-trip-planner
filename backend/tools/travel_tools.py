@@ -1,34 +1,37 @@
 import logging
 
-
 from langchain_core.tools import tool
+from services.pgsql_service import build_pg_dsn
+from services.knowledge_service import KnowledgeGraphService
+from services.travel_rag_service import TravelRAGService
 from tools.web_search import search_or_fallback
 
-# ================================
-# Tools & Helpers
-# ================================
 
 logger = logging.getLogger(__name__)
 
+# ================================
+# Init services (singleton style)
+# ================================
+
+# Initialize the knowledge graph service and RAG service once, to be reused across tool calls.
+kg_service = KnowledgeGraphService(build_pg_dsn())
+
+# The RAG service is initialized with the knowledge graph service and a search fallback function.
+rag = TravelRAGService(kg_service, search_or_fallback)
+
+# ================================
+#  Tools for travel planning, using RAG to fetch information from the knowledge graph and web search as needed.
+# ================================
+
 @tool
-def get_destination_info(destination: str) -> str:
-    """Get information for a destination."""
-    # TODO cache results in real system to avoid repeated searches for same destination
-    logger.info(f"Getting destination info for: {destination}")
-    obj = search_or_fallback(
-        f"{destination} travel info",
-        f"Summarize travel essentials for {destination}."
-    )
-    return obj["content"]
+async def get_destination_info(destination: str) -> str:
+    """Get information for a destination using RAG."""
+    logger.info(f"[TOOL] destination info: {destination}")
+    return await rag.get_destination_info(destination)
 
 
 @tool
-def get_costs(destination: str, budget_level: str) -> str:
-    """Get average costs for food, transport, and lodging."""
-    # TODO cache results in real system to avoid repeated searches for same destination and budget level
-    logger.info(f"Getting costs for: {destination} at {budget_level}")
-    obj = search_or_fallback(
-        f"{destination} travel costs {budget_level}",
-        f"Estimated costs for {budget_level} travel in {destination}."
-    )
-    return obj["content"]
+async def get_costs(destination: str, budget_level: str) -> str:
+    """Get average costs for food, transport, and lodging using RAG."""
+    logger.info(f"[TOOL] cost: {destination} | {budget_level}")
+    return await rag.get_costs(destination, budget_level)

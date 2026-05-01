@@ -23,3 +23,4 @@ AGENT_RESEARCH = "research"
 AGENT_BUDGET = "budget"
 AGENT_JOURNEY = "journey_plan"
 AGENT_PROFILE = "profile"
+

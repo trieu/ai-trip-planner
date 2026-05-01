@@ -57,7 +57,7 @@ async def plan_trip(req: TripRequest):
     }):
         try:
             # Trigger the AI graph
-            result = planner.invoke(initial_state)
+            result = await planner.invoke(initial_state)
 
             return TripResponse(
                 result=result.get("final", "Failed to generate journey plan."),
