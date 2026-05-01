@@ -1,6 +1,6 @@
 # ✈️ AI-Native Trip Planner (Multi-Agent)
 
-A **production-grade multi-agent orchestrator** built with Google Gemini / Open AI  and LangGraph. 
+A **production-grade multi-agent orchestrator** built with Google Gemini / Open AI and LangGraph.
 This system demonstrates how to build "Privacy-First" personalized AI by integrating a **Customer Data Platform (LEO CDP)** and **PostgreSQL 16** into a parallel-processing agentic workflow.
 
 ![UI screenshot](screenshot.png)
@@ -19,7 +19,6 @@ This system demonstrates how to build "Privacy-First" personalized AI by integra
 
 ## 🏗️ System Architecture
 
-
 ```mermaid
 graph TD
     %% Entry Layer
@@ -27,61 +26,68 @@ graph TD
         Input([TripRequest Pydantic Model]) -- destination, budget, user_id --> API[FastAPI Endpoints]
         API -- session_id / trace_id --> Trace[[Arize Phoenix Tracing]]
     end
+```
+
+```mermaid
+graph TD
 
     %% Intelligence Layer
     subgraph Core_Brain [LangGraph Orchestration]
-        START((START)) --> LP[load_profile Node]
-        
-        %% Hydration Logic
-        LP -- Queries cdp_profiles --> CDP[(LEO CDP: Postgres)]
-        CDP -- Hydrates State --> HydratedState[State: Profiles + Interests]
+      START((START)) --> LP[load_profile Node]
 
-        %% Parallel Execution
-        HydratedState --> RA[Research Agent Node]
-        HydratedState --> BA[Budget Agent Node]
-        HydratedState --> WA[Weather Agent Node]
+      %% Hydration Logic
+      LP -- Queries cdp_profiles --> CDP[(LEO CDP: Postgres)]
+      CDP -- Hydrates State --> HydratedState[State: Profiles + Interests]
 
-        %% Synthesis
-        RA & BA & WA --> AGG[Aggregate Node]
-        AGG --> JP[Journey Plan Node]
-        JP --> END((END))
-    end
+      %% Parallel Execution
+      HydratedState --> RA[Research Agent Node]
+      HydratedState --> BA[Budget Agent Node]
+      HydratedState --> WA[Weather Agent Node]
 
-    %% Data Strategy Layer
-    subgraph Knowledge_Memory [Self-Improving Memory Tier]
-        %% Research & Budget Logic
-        RA & BA -- RAG Logic --> RAG_S[TravelRAGService]
-        
-        RAG_S -- Vector Search --> KDB[(Knowledge DB: Postgres 16)]
-        KDB -.-> PGV[pgvector: Cosine Distance Search]
-        
-        %% Fallback Logic
-        RAG_S -- No Result --> Web[Web Search API]
-        Web -- Upsert Knowledge --> KDB
+      %% Synthesis
+      RA & BA & WA --> AGG[Aggregate Node]
+      AGG --> JP[Journey Plan Node]
+      JP --> END((END))
     end
 
    %% Third-party Data Layer
-    subgraph Realtime_Data_Sources [API Call]
-        %% Real-time Logic
-        WA -- Live Fetch --> W_API[Weather API Layer]
-        W_API -- Cache --> Redis[(Redis Cache)]
-    end
+   subgraph Realtime_Data_Sources [API Call]
+      %% Real-time Logic
+      WA -- Live Fetch --> W_API[Weather API Layer]
+      W_API -- Cache --> Redis[(Redis Cache)]
+end
+
+   %% Data Strategy Layer
+   subgraph Knowledge_Memory [Self-Improving Memory Tier]
+      %% Research & Budget Logic
+      RA & BA -- RAG Logic --> RAG_S[TravelRAGService]
+
+      RAG_S -- Vector Search --> KDB[(Knowledge DB: Postgres 16)]
+      KDB -.-> PGV[pgvector: Cosine Distance Search]
+
+      %% Fallback Logic
+      RAG_S -- No Result --> Web[Web Search API]
+      Web -- Upsert Knowledge --> KDB
+   end
+
+    
 
     %% Output Layer
     END --> FinalOut[/TripResponse: Markdown + Tool Trace/]
 ```
-
 
 ---
 
 ## 🛠️ Quickstart with local python code
 
 ### 1. Requirements
+
 - Python 3.10+
 - **Arize Phoenix** (for tracing)
 - **PostgreSQL 16** (optional, for profile storage)
 
 ### 2. Configure Environment
+
 Create a `.env` file by coping `sample.env` in the `backend/` directory:
 
 ### 3. Installation
@@ -93,6 +99,7 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
+
 ### 4. Terminal
 
 ```bash
@@ -110,11 +117,12 @@ cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - Docs: http://localhost:8000/docs
 
 Docker (optional)
+
 ```bash
 docker-compose up --build
 ```
----
 
+---
 
 ## Project Structure
 
@@ -136,13 +144,13 @@ docker-compose up --build
   Example body:
   ```json
   {
-      "destination":"Tokyo, Japan",
-      "duration":"7 days",
-      "budget":"$2000",
-      "interests":"food, culture",
-      "user_id": "demo_user_001",
-      "session_id": "web_debug_session"
-   }
+    "destination": "Tokyo, Japan",
+    "duration": "7 days",
+    "budget": "$2000",
+    "interests": "food, culture",
+    "user_id": "demo_user_001",
+    "session_id": "web_debug_session"
+  }
   ```
 - GET `/health` → simple status.
 
@@ -192,6 +200,7 @@ Recommended: Tavily (free tier: 1000 searches/month) - https://tavily.com
 ---
 
 ## 💡 Customization Ideas
+
 - **CRM Integration**: Add a `SalesforceService` class to the `DataServiceFactory`.
 - **Constraint-Based Planning**: Modify the `Budget Agent` to pull real-time currency conversion from an external API.
 - **Visual Itineraries**: Connect the `Itinerary Agent` to a Map API to return GeoJSON coordinates.
@@ -201,14 +210,17 @@ Recommended: Tavily (free tier: 1000 searches/month) - https://tavily.com
 ## 🚀 Learning Paths
 
 ### 🧬 Data & Personalization (The "CDP" Path)
+
 1. **Understand the Factory**: Explore `services/data_service.py` to see how the system switches between **LEO CDP** (API) and **PostgreSQL** (SQLAlchemy).
 2. **Profile-Driven Context**: See how the `load_profile` node injects user preferences (e.g., "likes luxury," "is vegan") into the agents without hardcoding.
 
 ### 🤖 Agent Orchestration (The "LangGraph" Path)
+
 1. **Parallelism**: Trace how `research` and `budget` nodes execute at the same time.
 2. **State Management**: Learn how `Annotated[List, operator.add]` in `TripState` allows multiple agents to contribute to a shared message history without overwriting each other.
 
 ### 🔍 Observability (The "Phoenix" Path)
+
 1. **Local Tracing**: Spin up Phoenix (`phoenix serve`) and watch the spans generate as Gemini calls tools.
 2. **Debugging**: Identify exactly which tool or agent caused a latency spike or a hallucination.
 
@@ -217,6 +229,7 @@ Recommended: Tavily (free tier: 1000 searches/month) - https://tavily.com
 ## Learning Paths
 
 ### 🎓 Beginner Path
+
 1. **Setup & Run** (15 min)
    - Clone repo, configure `.env` with your Gemini Key
    - Start server: `./start.sh`
@@ -233,6 +246,7 @@ Recommended: Tavily (free tier: 1000 searches/month) - https://tavily.com
    - See how it affects outputs
 
 ### 🚀 Intermediate Path
+
 1. **Enable Advanced Features** (20 min)
    - Set `ENABLE_RAG=1` to use vector search
    - Add `TAVILY_API_KEY` for real-time web search
@@ -249,6 +263,7 @@ Recommended: Tavily (free tier: 1000 searches/month) - https://tavily.com
    - Test and trace the new tool calls
 
 ### 💪 Advanced Path
+
 1. **Change the Domain** (2-3 hours)
    - Use Cursor AI to help transform the system
    - Example: Change from "trip planner" to "PRD generator"
@@ -296,4 +311,5 @@ Students have successfully adapted this codebase for:
 **💡 Your Turn**: Use Cursor AI to help you adapt this system for your domain!
 
 ---
-**Updated by Triều** | *Expertise in LEO CDP, RAG, and AI-Native Systems.*
+
+**Updated by Triều** | _Expertise in LEO CDP, RAG, and AI-Native Systems._
