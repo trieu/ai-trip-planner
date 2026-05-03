@@ -1,27 +1,39 @@
 from __future__ import annotations
 
 import uuid
+import logging
+from datetime import datetime
+from urllib.parse import quote_plus
+
+import psycopg
+from psycopg.rows import dict_row
 from sqlalchemy import text, TIMESTAMP
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from urllib.parse import quote_plus
-import psycopg
 from pydantic import Field
 from pydantic_settings import BaseSettings
-from psycopg.rows import dict_row
+from pydantic import ConfigDict
+
 from arango import ArangoClient
 
 from config import Settings
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------
 # Utility Functions
 # ---------------------------------------------------------------------
+
+# cache settings instance (avoid reloading env repeatedly)
+_settings = Settings()
+
 def get_default_tenant_id():
     """
     Python-side fallback ONLY.
     DB is the source of truth for partitioning.
     """
-    return Settings().DEFAULT_TENANT_ID
+    return _settings.DEFAULT_TENANT_ID
+
 
 # ---------------------------------------------------------------------
 # Base & Mixins
@@ -33,16 +45,24 @@ class Base(DeclarativeBase):
 
 
 class TimestampMixin:
-    """Standardized auditing timestamps for high-scale tracking."""
-    created_at: Mapped[uuid.UUID] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=text("now()")
-    )
-    updated_at: Mapped[uuid.UUID] = mapped_column(
+    """
+    Standardized auditing timestamps.
+    Uses DB-side defaults for consistency across services.
+    """
+
+    created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         server_default=text("now()"),
-        onupdate=text("now()")
+        nullable=False
     )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=text("now()"),
+        onupdate=text("now()"),
+        nullable=False
+    )
+
 
 # ---------------------------------------------------------------------
 # Database Settings
@@ -50,7 +70,12 @@ class TimestampMixin:
 
 class DatabaseSettings(BaseSettings):
     """
-    Database connection settings for PostgreSQL and ArangoDB.
+    Centralized database configuration.
+
+    Priority:
+    1. OS environment variables
+    2. .env file
+    3. Default values
     """
 
     # -------------------------
@@ -70,41 +95,66 @@ class DatabaseSettings(BaseSettings):
     ARANGO_USER: str = Field(default="root")
     ARANGO_PASSWORD: str
 
-    class Config:
-        # Pydantic automatically handles the priority:
-        # 1. OS Environment Variables (Highest Priority - Docker overrides this)
-        # 2. .env file values
-        # 3. Default values (Lowest Priority)
+    # ✅ Pydantic v2 config
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore",
+    )
 
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
-        extra = "ignore"  # Ignores other extra fields
+    # -----------------------------------------------------------------
+    # PostgreSQL
+    # -----------------------------------------------------------------
 
     @property
     def pg_dsn(self) -> str:
         """
-        Constructs a safe PostgreSQL connection string (DSN).
-        Handles special characters in the password and includes the port.
+        Build PostgreSQL DSN (psycopg).
 
-        Updates:
-        - Appends '?options=-c search_path=ag_catalog,public' 
-          to ensure Apache AGE functions are loaded and prioritized.
+        - Escapes password safely
+        - Injects AGE search_path
         """
-        # Safely encode the password to handle characters like '@', '/', ':'
+
         encoded_password = quote_plus(self.PGSQL_DB_PASSWORD)
 
-        # We pass 'options' to set the search_path at connection time.
-        # This is strictly required for AGE to recognize graph syntax in SQL.
         return (
             f"postgresql://{self.PGSQL_DB_USER}:{encoded_password}@"
             f"{self.PGSQL_DB_HOST}:{self.PGSQL_DB_PORT}/"
-            f"{self.PGSQL_DB_NAME}?options=-c%20search_path%3Dag_catalog,public"
+            f"{self.PGSQL_DB_NAME}"
+            f"?options=-c%20search_path%3Dag_catalog,public"
         )
+
+    @property
+    def pg_async_dsn(self) -> str:
+        """
+        DSN for SQLAlchemy async engine (asyncpg).
+        """
+        encoded_password = quote_plus(self.PGSQL_DB_PASSWORD)
+
+        return (
+            f"postgresql+asyncpg://{self.PGSQL_DB_USER}:{encoded_password}@"
+            f"{self.PGSQL_DB_HOST}:{self.PGSQL_DB_PORT}/"
+            f"{self.PGSQL_DB_NAME}"
+        )
+
+    def get_pg_connection(self) -> psycopg.Connection:
+        """
+        Create a synchronous PostgreSQL connection.
+        Used for lightweight queries or scripts.
+        """
+        return psycopg.connect(
+            self.pg_dsn,
+            row_factory=dict_row,
+        )
+
+    # -----------------------------------------------------------------
+    # ArangoDB
+    # -----------------------------------------------------------------
 
     def get_arango_db(self):
         """
-        Create and return an ArangoDB database connection.
+        Create ArangoDB database connection.
         """
 
         client = ArangoClient(hosts=self.ARANGO_HOST)
@@ -115,25 +165,12 @@ class DatabaseSettings(BaseSettings):
             password=self.ARANGO_PASSWORD,
         )
 
-        # Optional but useful sanity check
-        print(f"🔌 Connected to ArangoDB database: {db.name}")
+        # safer logging instead of print
+        logger.info(f"Connected to ArangoDB database: {db.name}")
 
         if db.name != self.ARANGO_DB:
-            print(
-                f"⚠️ WARNING: Expected '{self.ARANGO_DB}', "
-                f"but connected to '{db.name}'"
+            logger.warning(
+                f"Expected DB '{self.ARANGO_DB}', but got '{db.name}'"
             )
 
         return db
-
-    def get_pg_connection(self) -> psycopg.Connection:
-        """
-        Create a PostgreSQL connection using Settings.
-        """
-        return psycopg.connect(
-            self.pg_dsn,
-            row_factory=dict_row,
-        )
-
-
-

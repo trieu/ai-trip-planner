@@ -1,3 +1,5 @@
+# tests/test_pg_profile_service.py
+
 import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -5,14 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from services.pgsql_service import PostgresProfileService
 
 
-# ==========================================================
-# FIXTURES
-# ==========================================================
-
 @pytest.fixture
 def service():
     svc = PostgresProfileService()
-    svc.engines = [MagicMock()]  # avoid real engine creation
+    svc.engines = [MagicMock()]  # avoid real DB
     return svc
 
 
@@ -25,10 +23,6 @@ def mock_row():
     }
 
 
-# ==========================================================
-# TEST: CACHE HIT
-# ==========================================================
-
 @pytest.mark.asyncio
 async def test_get_user_profile_cache_hit(service, mock_row):
     with patch("services.pgsql_service.get_cache") as mock_get_cache:
@@ -39,10 +33,6 @@ async def test_get_user_profile_cache_hit(service, mock_row):
         assert result["profile_id"] == "user_1"
         assert result["first_name"] == "Thomas"
 
-
-# ==========================================================
-# TEST: CACHE MISS → DB HIT → CACHE SET
-# ==========================================================
 
 @pytest.mark.asyncio
 async def test_get_user_profile_db_fetch(service, mock_row):
@@ -66,10 +56,6 @@ async def test_get_user_profile_db_fetch(service, mock_row):
         mock_set_cache.assert_called_once()
 
 
-# ==========================================================
-# TEST: CACHE CORRUPTED → FALLBACK TO DB
-# ==========================================================
-
 @pytest.mark.asyncio
 async def test_cache_corrupted(service, mock_row):
     mock_conn = AsyncMock()
@@ -84,15 +70,10 @@ async def test_cache_corrupted(service, mock_row):
     service.engines = [mock_engine]
 
     with patch("services.pgsql_service.get_cache", return_value="invalid-json"):
-
         result = await service.get_user_profile("tenant_1", "user_1")
 
         assert result["profile_id"] == "user_1"
 
-
-# ==========================================================
-# TEST: DB RETURNS EMPTY
-# ==========================================================
 
 @pytest.mark.asyncio
 async def test_no_profile_found(service):
@@ -108,15 +89,10 @@ async def test_no_profile_found(service):
     service.engines = [mock_engine]
 
     with patch("services.pgsql_service.get_cache", return_value=None):
-
         result = await service.get_user_profile("tenant_1", "user_1")
 
         assert result == {}
 
-
-# ==========================================================
-# TEST: DB ERROR HANDLING
-# ==========================================================
 
 @pytest.mark.asyncio
 async def test_db_error(service):
@@ -129,17 +105,11 @@ async def test_db_error(service):
     service.engines = [mock_engine]
 
     with patch("services.pgsql_service.get_cache", return_value=None):
-
         result = await service.get_user_profile("tenant_1", "user_1")
 
         assert result["error"] == "postgres_unavailable"
 
 
-# ==========================================================
-# TEST: CACHE KEY MULTI-TENANT SAFETY
-# ==========================================================
-
 def test_cache_key(service):
     key = service._cache_key("tenant_1", "user_1")
-
     assert key == "profile:tenant_1:user_1"
