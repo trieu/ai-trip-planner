@@ -6,7 +6,8 @@ from typing import Any, Dict
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from sqlalchemy import text
 
-from services.data_service import BaseProfileService, require_env
+from services.base_service import build_engines
+from services.data_service import BaseProfileService
 from tools.cache_utils import get_cache, set_cache_with_ttl
 
 logger = logging.getLogger("postgres_profile_service")
@@ -22,40 +23,6 @@ PROFILE_SQL = """
 """
 
 
-def build_pg_dsn(prefix: str = "PGSQL_DB") -> str:
-    return (
-        f"postgresql+asyncpg://"
-        f"{require_env(f'{prefix}_USER')}:"
-        f"{require_env(f'{prefix}_PASSWORD')}@"
-        f"{require_env(f'{prefix}_HOST', 'localhost')}:"
-        f"{require_env(f'{prefix}_PORT', '5432')}/"
-        f"{require_env(f'{prefix}_NAME')}"
-    )
-
-
-def create_engine(dsn: str) -> AsyncEngine:
-    return create_async_engine(
-        dsn,
-        pool_size=10,
-        max_overflow=20,
-        pool_timeout=5,
-        pool_recycle=1800,
-        pool_pre_ping=True,
-    )
-
-
-def build_engines():
-    engines = [create_engine(build_pg_dsn())]
-
-    for i in range(1, 4):
-        prefix = f"PGSQL_REPLICA_{i}"
-        try:
-            if require_env(f"{prefix}_HOST", None):
-                engines.append(create_engine(build_pg_dsn(prefix)))
-        except Exception:
-            continue
-
-    return engines
 
 
 class PostgresProfileService(BaseProfileService):

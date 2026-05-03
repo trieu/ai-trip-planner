@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select, update, func
 
-from services.pgsql_service import build_pg_dsn
-from backend.services.data_models.dbo_knowledge_base import KnowledgeBase
+
+from services.data_models.dbo_knowledge_base import KnowledgeBase
 from meta_llm import MetaLLM
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,10 @@ class KnowledgeGraphService:
 
     def __init__(self, database_url: Optional[str] = None):
         self.embedder = MetaLLM.get_embeddings()
-        self.DATABASE_URL = database_url or build_pg_dsn()
+        self.DATABASE_URL = database_url or None 
+        
+        if self.DATABASE_URL is None:
+            raise ValueError("DATABASE_URL must be provided either directly or via build_pg_dsn()")
 
         self.engine = create_async_engine(
             self.DATABASE_URL,

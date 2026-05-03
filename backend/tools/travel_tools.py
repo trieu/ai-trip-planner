@@ -1,7 +1,7 @@
 import logging
 
 from langchain_core.tools import tool
-from services.pgsql_service import build_pg_dsn
+from services.base_service import build_pg_dsn
 from services.knowledge_service import KnowledgeGraphService
 from services.travel_rag_service import TravelRAGService
 from tools.web_search import search_or_fallback

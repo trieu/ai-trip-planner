@@ -8,7 +8,7 @@ from .mock_test_service import MockProfileService
 from .persona_service import PersonaService
 from .knowledge_service import KnowledgeGraphService
 from .travel_rag_service import TravelRAGService
-from .pgsql_service import build_pg_dsn
+
 
 from services.data_models.dbo_base import Base, DatabaseSettings, get_default_tenant_id
 from services.data_models.dbo_tenant import Tenant
@@ -25,7 +25,6 @@ __all__ = [
     "PersonaService",
     "KnowledgeGraphService",
     "TravelRAGService",
-    "build_pg_dsn",
     "Base",
     "DatabaseSettings",
     "get_default_tenant_id",

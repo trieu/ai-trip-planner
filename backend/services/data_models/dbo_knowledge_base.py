@@ -91,7 +91,6 @@ class KnowledgeBase(Base):
     content_hash: Mapped[Optional[bytes]] = mapped_column(
         BYTEA,
         nullable=True,
-        init=False,
         comment="""
         GENERATED ALWAYS (digest(content, 'sha256')) STORED
 

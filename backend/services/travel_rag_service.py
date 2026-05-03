@@ -4,6 +4,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 DEFAULT_BUDGET_LEVEL = "mid-range"
 DEFAULT_TEMPERATURE = 0.2
+COMPUTE_EMBEDDINGS = True  # Set to False to skip embedding and vector search, and always fallback to web search (for testing)
 
 # This file defines the TravelRAGService class, 
 # which implements a Retrieval-Augmented Generation (RAG) layer for travel information. 
@@ -49,7 +50,7 @@ class TravelRAGService:
 
         results = await self.kg.search(
             query=f"{destination} travel guide",
-            destination=destination,
+            keyword=destination,
             category="info"
         )
 
@@ -67,10 +68,11 @@ class TravelRAGService:
 
         # store back → improves future queries
         await self.kg.upsert_knowledge(
-            destination=destination,
+            keyword=destination,
             category="info",
             content=content,
-            source="web"
+            source="web",
+            compute_embedding=COMPUTE_EMBEDDINGS
         )
 
         return content
@@ -99,7 +101,7 @@ class TravelRAGService:
 
         results = await self.kg.search(
             query=query,
-            destination=destination,
+            keyword=destination,
             category="cost"
         )
 
@@ -115,11 +117,12 @@ class TravelRAGService:
         content = web["content"]
 
         await self.kg.upsert_knowledge(
-            destination=destination,
+            keyword=destination,
             category="cost",
             content=content,
             source="web",
-            metadata={"budget": budget_level}
+            metadata={"budget": budget_level},
+            compute_embedding=COMPUTE_EMBEDDINGS
         )
 
         return content
