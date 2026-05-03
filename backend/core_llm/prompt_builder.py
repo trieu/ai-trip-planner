@@ -9,10 +9,10 @@ DEFAULT_LANGUAGE = "English"
 
 def build_trip_planner_prompt(state: TripState) -> str:
     """
-    Backward-compatible prompt builder.
-    - Returns STRING (fixes your crash)
+    Builds a prompt for the trip planner AI.
     - Works for both OpenAI + Gemini
     - Strong language enforcement
+    - Clear formatting rules
     """
 
     req = state.get("trip_request", {}) or {}

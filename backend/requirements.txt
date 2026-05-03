@@ -7,9 +7,9 @@ httpx
 tenacity
 
 # Data validation and settings management
-# Email utilities for user notifications and alerts
 pydantic>=2.7.4
 pydantic-settings
+# Email utilities for user notifications and alerts
 pydantic[email]
 
 # Authentication & Security
@@ -39,12 +39,12 @@ greenlet # Required for SQLAlchemy async support
 asyncpg # Async driver for PostgreSQL, required by SQLAlchemy for async operations
 psycopg[binary] # Synchronous driver for PostgreSQL
 pgvector # For vector search capabilities in PostgreSQL
+python-arango # ArangoDB driver to connect LEO CDP directly,
 
 # Cache
 redis>=5  
 
-# Distributed task queue with Redis as broker
-# Used for async jobs: embeddings, campaign execution, batch processing
+# Distributed task queue with Redis as broker, for async jobs: embeddings, campaign execution, batch processing
 dramatiq[redis, watch]
 
 # Development & Testing

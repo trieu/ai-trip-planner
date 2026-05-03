@@ -1,5 +1,7 @@
 # services/knowledge_service.py
 
+import uuid
+
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 import logging
 from typing import List, Dict, Any
@@ -7,7 +9,7 @@ from typing import List, Dict, Any
 from sqlalchemy import select
 
 from services.pgsql_service import build_pg_dsn
-from services.data_models.travel_knowledge import TravelKnowledge
+from backend.services.data_models.dbo_knowledge_base import KnowledgeBase
 from meta_llm import MetaLLM
 
 logger = logging.getLogger(__name__)
@@ -48,7 +50,7 @@ class KnowledgeGraphService:
     # ============================================================
     async def upsert_knowledge(
         self,
-        destination: str,
+        keyword: str,
         category: str,
         content: str,
         source: str = "unknown",
@@ -58,12 +60,14 @@ class KnowledgeGraphService:
 
         async with self.AsyncSessionLocal() as session:
             try:
-                obj = TravelKnowledge(
-                    destination=destination,
+                obj = KnowledgeBase(
+                    tenant_id=uuid.uuid4(),  # Replace with actual tenant ID
+                    id=uuid.uuid4(),
+                    keyword=keyword,
                     category=category,
                     content=content,
                     source=source,
-                    embedding=emb,  # ✅ no conversion needed
+                    embedding=emb, 
                     metadata=metadata or {}
                 )
 
@@ -80,7 +84,7 @@ class KnowledgeGraphService:
     async def search(
         self,
         query: str,
-        destination: str = None,
+        keyword: str = None,
         category: str = None,
         top_k: int = 3
     ) -> List[Dict[str, Any]]:
@@ -89,17 +93,17 @@ class KnowledgeGraphService:
 
         async with self.AsyncSessionLocal() as session:
             try:
-                stmt = select(TravelKnowledge)
+                stmt = select(KnowledgeBase)
 
-                if destination:
-                    stmt = stmt.where(TravelKnowledge.destination == destination)
+                if keyword:
+                    stmt = stmt.where(KnowledgeBase.keyword == keyword)
 
                 if category:
-                    stmt = stmt.where(TravelKnowledge.category == category)
+                    stmt = stmt.where(KnowledgeBase.category == category)
 
                 # 🔥 pgvector native operator
                 stmt = stmt.order_by(
-                    TravelKnowledge.embedding.cosine_distance(emb)
+                    KnowledgeBase.embedding.cosine_distance(emb)
                 ).limit(top_k)
 
                 result = await session.execute(stmt)

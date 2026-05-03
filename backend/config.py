@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     TAVILY_API_KEY: Optional[str] = None
+    
+    # default tenant for multi-tenancy support (can be overridden by env var or during runtime)
+    DEFAULT_TENANT_ID: str = "00000000-0000-0000-0000-000000000000"
 
     # ========================================
     # PROFILE

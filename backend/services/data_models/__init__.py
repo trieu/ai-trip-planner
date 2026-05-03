@@ -14,7 +14,7 @@ from .schemas import (
     MarketResearchSignal
 )
 
-from .travel_knowledge import TravelKnowledge
+from .dbo_knowledge_base import KnowledgeBase
 from .pg_profile import PGProfileUpsert  
 
 __all__ = [
@@ -31,6 +31,6 @@ __all__ = [
     "SocialMediaSignal",
     "FirstPartyDataSignal",
     "MarketResearchSignal",
-    "TravelKnowledge",
+    "KnowledgeBase",
     "PGProfileUpsert"
 ]
