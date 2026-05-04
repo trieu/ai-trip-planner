@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 from tavily import TavilyClient
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from meta_llm import MetaLLM
+from core_llm.meta_llm import MetaLLM
 from tools.cache_utils import get_cache, set_cache
 from tools.text_utils import normalize_text
 from config import Settings

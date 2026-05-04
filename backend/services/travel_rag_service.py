@@ -1,4 +1,4 @@
-from meta_llm import MetaLLM
+from core_llm.meta_llm import MetaLLM
 from services.knowledge_service import KnowledgeGraphService
 from langchain_core.messages import SystemMessage, HumanMessage
 

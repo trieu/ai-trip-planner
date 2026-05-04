@@ -14,7 +14,7 @@ from tools.weather_tools import get_current_weather
 from tools.travel_tools import get_costs, get_destination_info
 
 from services import DataServiceFactory
-from meta_llm import MetaLLM
+from core_llm.meta_llm import MetaLLM
 
 # ============================================================
 # Logging

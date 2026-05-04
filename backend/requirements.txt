@@ -1,4 +1,8 @@
-# Backend Requirements
+# This file lists the dependencies for the backend of the AI Trip Planner application.
+# It includes core libraries for building the API, handling authentication, interacting with LLMs,
+
+#  FASTAPI for building the web API
+#  HTTPX for making async HTTP requests to external services
 fastapi
 fastapi-limiter
 uvicorn[standard]
@@ -15,16 +19,16 @@ pydantic[email]
 # Authentication & Security
 PyJWT
 passlib
-bcrypt
+argon2-cffi
 python-multipart
 
-# AI
-langchain
-langchain-community
-langgraph
-langchain-google-genai
-langchain-openai
-tavily-python
+# AI and LLM related
+langchain>=1.2.17
+langchain-community>=0.4.1
+langgraph>=1.1.8
+langchain-google-genai>=4.2.2
+langchain-openai>=1.2.1
+tavily-python>=0.7.23
 
 # Observability
 arize-phoenix
@@ -39,10 +43,11 @@ greenlet # Required for SQLAlchemy async support
 asyncpg # Async driver for PostgreSQL, required by SQLAlchemy for async operations
 psycopg[binary] # Synchronous driver for PostgreSQL
 pgvector # For vector search capabilities in PostgreSQL
-python-arango # ArangoDB driver to connect LEO CDP directly,
+python-arango # ArangoDB driver to connect LEO CDP directly
+alembic>=1.18.0 # Database Migrations
 
 # Cache
-redis>=5  
+redis[hiredis]>= 6.0.0
 
 # Distributed task queue with Redis as broker, for async jobs: embeddings, campaign execution, batch processing
 dramatiq[redis, watch]

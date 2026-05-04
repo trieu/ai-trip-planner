@@ -47,18 +47,28 @@ lsof -ti :$PORT | xargs kill -9 2>/dev/null || true
 lsof -ti :$PHOENIX_PORT | xargs kill -9 2>/dev/null || true
 
 # ==========================================================
-# 4. Start Phoenix
+# 4. Ensure logs directory exists
+# ==========================================================
+if [ ! -d "logs" ]; then
+  mkdir "logs"
+  echo "✅ Created 'logs' directory"
+else
+  echo "ℹ️  'logs' directory already exists"
+fi
+
+# ==========================================================
+# 5. Start Phoenix
 # ==========================================================
 echo "🧠 Starting Phoenix..."
 python -m phoenix.server.main serve \
   --port "$PHOENIX_PORT" \
-  > phoenix.log 2>&1 &
+  > logs/phoenix.log 2>&1 &
 
 PHOENIX_PID=$!
 echo "Phoenix PID: $PHOENIX_PID"
 
 # ==========================================================
-# 5. Start Backend
+# 6. Start Backend
 # ==========================================================
 echo "⚡ Starting Backend API..."
 
@@ -71,7 +81,7 @@ if [[ "$MODE" == "live" ]]; then
     --workers "$WORKERS" \
     --loop uvloop \
     --http httptools \
-    > backend.log 2>&1 &
+    > logs/backend.log 2>&1 &
 
 else
   echo "🧪 Running in DEV mode (reload enabled)"
@@ -80,14 +90,14 @@ else
     --host "$HOST" \
     --port "$PORT" \
     --reload \
-    > backend.log 2>&1 &
+    > logs/backend.log 2>&1 &
 fi
 
 BACKEND_PID=$!
 echo "Backend PID: $BACKEND_PID"
 
 # ==========================================================
-# 6. Health Check
+# 7. Health Check
 # ==========================================================
 sleep 2
 
@@ -97,13 +107,13 @@ echo "🔎 Checking services..."
 if ps -p $BACKEND_PID > /dev/null; then
   echo "✅ Backend running"
 else
-  echo "❌ Backend failed (check backend.log)"
+  echo "❌ Backend failed (check logs/backend.log)"
 fi
 
 if ps -p $PHOENIX_PID > /dev/null; then
   echo "✅ Phoenix running"
 else
-  echo "❌ Phoenix failed (check phoenix.log)"
+  echo "❌ Phoenix failed (check logs/phoenix.log)"
 fi
 
 echo ""
@@ -113,14 +123,14 @@ echo "  Phoenix:   http://localhost:$PHOENIX_PORT"
 echo ""
 
 echo "📄 Logs:"
-echo "  tail -f backend/backend.log"
-echo "  tail -f backend/phoenix.log"
+echo "  tail -f backend/logs/backend.log"
+echo "  tail -f backend/logs/phoenix.log"
 echo ""
 
 echo "🛑 Press Ctrl+C to stop all services"
 
 # ==========================================================
-# 7. Cleanup
+# 8. Cleanup
 # ==========================================================
 cleanup() {
   echo ""
@@ -139,6 +149,6 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 # ==========================================================
-# 8. Wait
+# 9. Wait
 # ==========================================================
 wait

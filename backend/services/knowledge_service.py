@@ -10,7 +10,7 @@ from sqlalchemy import select, update, func
 
 
 from services.data_models.dbo_knowledge_base import KnowledgeBase
-from meta_llm import MetaLLM
+from core_llm.meta_llm import MetaLLM
 
 logger = logging.getLogger(__name__)
 
