@@ -203,48 +203,53 @@ fi
 # Database: PostgreSQL 16+
 # ============================================================
 
+# Ordered list of tables based on the LEO Agentic AI Framework Core
 TABLES=(
-  # --- Core / Tenant ---
-  tenant
+  # --- Section 3: Core / Tenant ---
+  "tenant"
 
-  # --- CDP ---
-  cdp_profiles
-  consent_management
+  # --- Section 4: CDP ---
+  "cdp_profiles"
+  "consent_management"
 
-  # --- Campaign & Marketing ---
-  campaign
-  marketing_event
-  message_templates
-  activation_experiments
+  # --- Section 7/20: Campaign & Marketing ---
+  "campaign"
+  "marketing_event"
+  "message_templates"
+  "activation_experiments"
 
-  # --- Segmentation ---
-  segment_snapshot
-  segment_snapshot_member
+  # --- Section 9: Segmentation ---
+  "segment_snapshot"
+  "segment_snapshot_member"
 
-  # --- Alert Center / Market Data ---
-  instruments
-  market_snapshot
-  alert_rules
-  news_feed
+  # --- Section 10/11: Alert Center / Market Data ---
+  "trackable_entities"    
+  "entity_states"         
+  "alert_rules"
+  "news_feed"
 
-  # --- AI / Agent ---
-  agent_task
-  embedding_job
+  # --- Section 5/13/15: AI / Agent Core ---
+  "ai_agent_registry"     # Central Agent configuration
+  "ai_agent_tools"        # Tool registry for functional calls
+  "ai_agent_sessions"     # Short-term conversation memory
+  "ai_agent_messages"     # Message history / trace
+  "agent_task"            # Decision trace & Reasoning logs
+  "embedding_job"         # Asynchronous vectorization queue
 
-  # --- Execution / Delivery ---
-  delivery_log
-  activation_outcomes
+  # --- Section 14/21: Execution / Delivery ---
+  "delivery_log"
+  "activation_outcomes"
 
-  # --- Behavioral Feedback Loop ---
-  behavioral_events
-  event_metrics
+  # --- Section 16/22: Behavioral Feedback Loop ---
+  "behavioral_events"
+  "event_metrics"
 
-  # --- Recommendations ---
-  product_recommendations
+  # --- Section 23: Recommendations ---
+  "product_recommendations"
 
-  # --- Data Lineage / System ---
-  data_sources
-  schema_migrations
+  # --- Section 18/25: Data Lineage / Knowledge ---
+  "data_sources"
+  "knowledge_base"        # Core RAG repository
 )
 
 # Note: ag_catalog tables (ag_graph, ag_label) exist but are hidden in ag_catalog schema

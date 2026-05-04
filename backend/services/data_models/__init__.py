@@ -1,6 +1,6 @@
+from .travel_models import TripRequest, TripResponse
+
 from .schemas import (
-    TripRequest,
-    TripResponse,
     PersonaReport,
     PersonaReportRequest,
     PersonaReportResponse,

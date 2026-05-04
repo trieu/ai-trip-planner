@@ -3,11 +3,10 @@ Trip planning API endpoints.
 """
 
 from core_llm.smart_trip_planner import SmartTripPlanner, safe_attributes
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Optional, List, Dict, Any
+from fastapi import APIRouter, HTTPException
 import logging
 
-from services.data_models.schemas import TripRequest, TripResponse
+from services.data_models.travel_models import TripRequest, TripResponse
 from config import get_settings
 
 from tasks.agent_tasks import generate_trip_plan
