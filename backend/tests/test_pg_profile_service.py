@@ -1,16 +1,22 @@
-# tests/test_pg_profile_service.py
-
 import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from services.pgsql_service import PostgresProfileService
+from config import Settings
+from services.cdp_profile_service import PostgresProfileService
+
+PGSQL_DATABASE_DSN = Settings().PGSQL_DATABASE_DSN
+
+if not PGSQL_DATABASE_DSN:
+    pytest.skip("Postgres not configured", allow_module_level=True)
 
 
+# =====================================================
+# FIXTURE
+# =====================================================
 @pytest.fixture
 def service():
-    svc = PostgresProfileService()
-    svc.engines = [MagicMock()]  # avoid real DB
+    svc = PostgresProfileService(db_url=PGSQL_DATABASE_DSN)
     return svc
 
 
@@ -23,9 +29,13 @@ def mock_row():
     }
 
 
+
+# =====================================================
+# CACHE HIT
+# =====================================================
 @pytest.mark.asyncio
 async def test_get_user_profile_cache_hit(service, mock_row):
-    with patch("services.pgsql_service.get_cache") as mock_get_cache:
+    with patch("services.cdp_profile_service.get_cache") as mock_get_cache:
         mock_get_cache.return_value = json.dumps(mock_row)
 
         result = await service.get_user_profile("tenant_1", "user_1")
@@ -34,21 +44,23 @@ async def test_get_user_profile_cache_hit(service, mock_row):
         assert result["first_name"] == "Thomas"
 
 
+# =====================================================
+# DB FETCH
+# =====================================================
 @pytest.mark.asyncio
 async def test_get_user_profile_db_fetch(service, mock_row):
-    mock_conn = AsyncMock()
     mock_result = MagicMock()
-
     mock_result.mappings.return_value.first.return_value = mock_row
-    mock_conn.execute.return_value = mock_result
 
-    mock_engine = MagicMock()
-    mock_engine.connect.return_value.__aenter__.return_value = mock_conn
+    mock_session = AsyncMock()
+    mock_session.execute.return_value = mock_result
 
-    service.engines = [mock_engine]
+    # Mock async session context manager
+    service.async_session = MagicMock()
+    service.async_session.return_value.__aenter__.return_value = mock_session
 
-    with patch("services.pgsql_service.get_cache", return_value=None), \
-         patch("services.pgsql_service.set_cache_with_ttl") as mock_set_cache:
+    with patch("services.cdp_profile_service.get_cache", return_value=None), \
+         patch("services.cdp_profile_service.set_cache_with_ttl") as mock_set_cache:
 
         result = await service.get_user_profile("tenant_1", "user_1")
 
@@ -56,60 +68,68 @@ async def test_get_user_profile_db_fetch(service, mock_row):
         mock_set_cache.assert_called_once()
 
 
+# =====================================================
+# CACHE CORRUPTED
+# =====================================================
 @pytest.mark.asyncio
 async def test_cache_corrupted(service, mock_row):
-    mock_conn = AsyncMock()
     mock_result = MagicMock()
-
     mock_result.mappings.return_value.first.return_value = mock_row
-    mock_conn.execute.return_value = mock_result
 
-    mock_engine = MagicMock()
-    mock_engine.connect.return_value.__aenter__.return_value = mock_conn
+    mock_session = AsyncMock()
+    mock_session.execute.return_value = mock_result
 
-    service.engines = [mock_engine]
+    service.async_session = MagicMock()
+    service.async_session.return_value.__aenter__.return_value = mock_session
 
-    with patch("services.pgsql_service.get_cache", return_value="invalid-json"):
+    with patch("services.cdp_profile_service.get_cache", return_value="invalid-json"):
         result = await service.get_user_profile("tenant_1", "user_1")
 
         assert result["profile_id"] == "user_1"
 
 
+# =====================================================
+# NOT FOUND
+# =====================================================
 @pytest.mark.asyncio
 async def test_no_profile_found(service):
-    mock_conn = AsyncMock()
     mock_result = MagicMock()
-
     mock_result.mappings.return_value.first.return_value = None
-    mock_conn.execute.return_value = mock_result
 
-    mock_engine = MagicMock()
-    mock_engine.connect.return_value.__aenter__.return_value = mock_conn
+    mock_session = AsyncMock()
+    mock_session.execute.return_value = mock_result
 
-    service.engines = [mock_engine]
+    service.async_session = MagicMock()
+    service.async_session.return_value.__aenter__.return_value = mock_session
 
-    with patch("services.pgsql_service.get_cache", return_value=None):
+    with patch("services.cdp_profile_service.get_cache", return_value=None):
         result = await service.get_user_profile("tenant_1", "user_1")
 
         assert result == {}
 
 
+# =====================================================
+# DB ERROR
+# =====================================================
 @pytest.mark.asyncio
-async def test_db_error(service):
-    mock_conn = AsyncMock()
-    mock_conn.execute.side_effect = Exception("DB down")
+async def test_db_error(service, caplog):
+    caplog.set_level("CRITICAL")  # suppress ERROR logs
 
-    mock_engine = MagicMock()
-    mock_engine.connect.return_value.__aenter__.return_value = mock_conn
+    mock_session = AsyncMock()
+    mock_session.execute.side_effect = Exception("DB down")
 
-    service.engines = [mock_engine]
+    service.async_session = MagicMock()
+    service.async_session.return_value.__aenter__.return_value = mock_session
 
-    with patch("services.pgsql_service.get_cache", return_value=None):
+    with patch("services.cdp_profile_service.get_cache", return_value=None):
         result = await service.get_user_profile("tenant_1", "user_1")
 
         assert result["error"] == "postgres_unavailable"
 
 
+# =====================================================
+# CACHE KEY
+# =====================================================
 def test_cache_key(service):
     key = service._cache_key("tenant_1", "user_1")
     assert key == "profile:tenant_1:user_1"

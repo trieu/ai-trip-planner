@@ -44,9 +44,9 @@ CREATE TABLE IF NOT EXISTS tenant (
     tenant_id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_name         TEXT NOT NULL,
     status              TEXT NOT NULL DEFAULT 'active', 
-    keycloak_realm      TEXT NOT NULL,        
-    keycloak_client_id  TEXT NOT NULL,        
-    keycloak_org_id     TEXT,                 
+    keycloak_realm      TEXT DEFAULT NULL,        
+    keycloak_client_id  TEXT DEFAULT NULL,        
+    keycloak_org_id     TEXT DEFAULT NULL,                 
     metadata            JSONB NOT NULL DEFAULT '{}',
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -141,6 +141,10 @@ CREATE INDEX IF NOT EXISTS idx_cdp_profiles_primary_email ON cdp_profiles (tenan
 CREATE INDEX IF NOT EXISTS idx_cdp_profiles_identities ON cdp_profiles USING GIN (identities);
 CREATE INDEX IF NOT EXISTS idx_cdp_profiles_segments ON cdp_profiles USING GIN (segments jsonb_path_ops);
 CREATE INDEX IF NOT EXISTS idx_cdp_profiles_content_keywords ON cdp_profiles USING GIN (content_keywords);
+CREATE INDEX IF NOT EXISTS idx_cdp_profiles_touchpoints ON cdp_profiles USING GIN (top_engaged_touchpoints);
+CREATE INDEX IF NOT EXISTS idx_cdp_profiles_labels ON cdp_profiles USING GIN (data_labels);
+CREATE INDEX IF NOT EXISTS idx_cdp_profiles_channels ON cdp_profiles USING GIN (media_channels);
+
 
 ALTER TABLE cdp_profiles ENABLE ROW LEVEL SECURITY;
 DO $$

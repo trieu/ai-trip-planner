@@ -1,8 +1,8 @@
 # Import the factory from the internal module
 from .data_service import DataServiceFactory
 from .leocdp_service import LeoCDPService
-from .pgsql_service import PostgresProfileService   
-from .base_service import BaseProfileService, require_env
+from .cdp_profile_service import PostgresProfileService   
+from .base_service import BaseProfileService
 from .mock_test_service import MockProfileService
 
 from .persona_service import PersonaService
@@ -20,7 +20,6 @@ __all__ = [
     "LeoCDPService",
     "PostgresProfileService", 
     "BaseProfileService", 
-    "require_env",
     "MockProfileService",
     "PersonaService",
     "KnowledgeGraphService",

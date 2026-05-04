@@ -1,4 +1,5 @@
 import os
+from sys import prefix
 from typing import Literal, Optional
 from functools import lru_cache
 
@@ -6,10 +7,44 @@ from dotenv import find_dotenv, load_dotenv
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 # ================================
 # Environment Setup
 # ================================
 load_dotenv(find_dotenv(), override=True)
+
+# Utility function to ensure required env variables are present
+def require_env(key: str, default_value : str = None) -> str:
+    '''Get an environment variable or raise an error if it's missing.'''
+    value = os.getenv(key)
+    if not value:
+        if default_value is not None:
+            return default_value
+        raise ValueError(f"Missing required env: {key}")
+    return value
+
+# ========================================
+# Database DSN Builder
+# ========================================
+def build_pg_dsn(prefix: str = "PGSQL_DB") -> str:
+    """ Build PostgreSQL DSN for asyncpg driver from environment variables.
+
+    Args:
+        prefix (str, optional): . Defaults to "PGSQL_DB".
+
+    Returns:
+        str: PGSQL DSN string for asyncpg driver, e.g.:
+        postgresql+asyncpg://user:password@host:port/dbname
+    """
+    dsn = (
+        f"postgresql+asyncpg://"
+        f"{require_env(f'{prefix}_USER')}:"
+        f"{require_env(f'{prefix}_PASSWORD')}@"
+        f"{require_env(f'{prefix}_HOST', 'localhost')}:"
+        f"{require_env(f'{prefix}_PORT', '5432')}/"
+        f"{require_env(f'{prefix}_NAME')}"
+    )
+    return dsn
 
 # ================================
 # Settings
@@ -181,12 +216,17 @@ class Settings(BaseSettings):
     # ========================================
 
     @property
-    def DATABASE_URL(self) -> Optional[str]:
+    def PGSQL_DATABASE_DSN(self) -> Optional[str]:
         if all([self.PGSQL_DB_HOST, self.PGSQL_DB_NAME, self.PGSQL_DB_USER, self.PGSQL_DB_PASSWORD]):
-            return (
-                f"postgresql://{self.PGSQL_DB_USER}:{self.PGSQL_DB_PASSWORD}"
-                f"@{self.PGSQL_DB_HOST}:{self.PGSQL_DB_PORT}/{self.PGSQL_DB_NAME}"
+            dsn = (
+                f"postgresql+asyncpg://"
+                f"{self.PGSQL_DB_USER}:"
+                f"{self.PGSQL_DB_PASSWORD}@"
+                f"{self.PGSQL_DB_HOST}:"
+                f"{self.PGSQL_DB_PORT}/"
+                f"{self.PGSQL_DB_NAME}"
             )
+            return dsn
         return None
 
     @property

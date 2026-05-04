@@ -1,11 +1,11 @@
 import logging
 
 from langchain_core.tools import tool
-from services.base_service import build_pg_dsn
+
 from services.knowledge_service import KnowledgeGraphService
 from services.travel_rag_service import TravelRAGService
 from tools.web_search import search_or_fallback
-
+from config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # ================================
 
 # Initialize the knowledge graph service and RAG service once, to be reused across tool calls.
-kg_service = KnowledgeGraphService(build_pg_dsn())
+kg_service = KnowledgeGraphService(Settings().PGSQL_DATABASE_DSN)
 
 # The RAG service is initialized with the knowledge graph service and a search fallback function.
 rag = TravelRAGService(kg_service, search_or_fallback)

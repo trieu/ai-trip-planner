@@ -29,15 +29,15 @@ class KnowledgeGraphService:
     - Proper UPSERT using (tenant_id, category, content_hash)
     """
 
-    def __init__(self, database_url: Optional[str] = None):
+    def __init__(self, database_dns: Optional[str] = None):
         self.embedder = MetaLLM.get_embeddings()
-        self.DATABASE_URL = database_url or None 
+        self.PGSQL_DATABASE_DSN = database_dns or None 
         
-        if self.DATABASE_URL is None:
-            raise ValueError("DATABASE_URL must be provided either directly or via build_pg_dsn()")
+        if self.PGSQL_DATABASE_DSN is None:
+            raise ValueError("PGSQL_DATABASE_DSN must be provided either directly or via config.build_pg_dsn()")
 
         self.engine = create_async_engine(
-            self.DATABASE_URL,
+            self.PGSQL_DATABASE_DSN,
             echo=False,
             pool_size=10,
             max_overflow=20,

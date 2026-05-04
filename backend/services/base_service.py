@@ -8,6 +8,8 @@ from typing import Dict, Any
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from dotenv import load_dotenv
 
+from config import build_pg_dsn, require_env, Settings
+
 # ==========================================
 # Load ENV (single source of truth)
 # ==========================================
@@ -18,29 +20,16 @@ class BaseProfileService(ABC):
     def get_user_profile(self, user_id: str) -> Dict[str, Any]:
         pass
 
-# Utility function to ensure required env variables are present
-def require_env(key: str, default_value : str = None) -> str:
-    '''Get an environment variable or raise an error if it's missing.'''
-    value = os.getenv(key)
-    if not value:
-        if default_value is not None:
-            return default_value
-        raise ValueError(f"Missing required env: {key}")
-    return value
-
-
-def build_pg_dsn(prefix: str = "PGSQL_DB") -> str:
-    return (
-        f"postgresql+asyncpg://"
-        f"{require_env(f'{prefix}_USER')}:"
-        f"{require_env(f'{prefix}_PASSWORD')}@"
-        f"{require_env(f'{prefix}_HOST', 'localhost')}:"
-        f"{require_env(f'{prefix}_PORT', '5432')}/"
-        f"{require_env(f'{prefix}_NAME')}"
-    )
-
 
 def create_engine(dsn: str) -> AsyncEngine:
+    """ creates a SQLAlchemy AsyncEngine with connection pooling and pre-ping enabled. 
+
+    Args:
+        dsn (str): _description_
+
+    Returns:
+        AsyncEngine: _description_
+    """
     return create_async_engine(
         dsn,
         pool_size=10,
@@ -51,7 +40,13 @@ def create_engine(dsn: str) -> AsyncEngine:
     )
 
 def build_engines():
-    engines = [create_engine(build_pg_dsn())]
+    """ build async engines for PostgreSQL connections, including replicas if configured.
+
+    Returns:
+        _type_: _description_
+    """
+    dns = Settings().PGSQL_DATABASE_DSN
+    engines = [create_engine(dns)]
 
     for i in range(1, 4):
         prefix = f"PGSQL_REPLICA_{i}"
