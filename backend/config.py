@@ -115,14 +115,14 @@ class Settings(BaseSettings):
     DEFAULT_TENANT_ID: str = "00000000-0000-0000-0000-000000000000"
 
     # ========================================
-    # PROFILE
+    # PROFILE 
     # ========================================
     PROFILE_SOURCE: Literal["LEO_CDP", "POSTGRES", "MOCK_DATA"] = "MOCK_DATA"
 
     # ========================================
-    # DB
+    # DATABASE CONFIGURATION
     # ========================================
-    PGSQL_DB_HOST: Optional[str] = None
+    PGSQL_DB_HOST: Optional[str] = "localhost"
     PGSQL_DB_PORT: int = 5432
     PGSQL_DB_NAME: Optional[str] = None
     PGSQL_DB_USER: Optional[str] = None
