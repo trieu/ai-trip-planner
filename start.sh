@@ -35,7 +35,7 @@ fi
 # 2. Defaults
 # ==========================================================
 HOST=${HOST:-0.0.0.0}
-PORT=${PORT:-8000}
+PORT=${PORT:-8888}
 PHOENIX_PORT=${PHOENIX_PORT:-6006}
 WORKERS=${WORKERS:-4}
 

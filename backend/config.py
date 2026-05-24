@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     # Server
     # ========================================
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 8888
     WORKERS: int = 4
     FRONTEND_DIR: str = "../frontend"
     API_PREFIX: str = "/api"
@@ -147,7 +147,7 @@ class Settings(BaseSettings):
     # ========================================
     # CORS
     # ========================================
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8888"]
     CORS_ALLOW_CREDENTIALS: bool = True
 
     # ========================================
@@ -191,7 +191,7 @@ class Settings(BaseSettings):
     def parse_cors(cls, v):
         """
         Handle .env string like:
-        CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]
+        CORS_ORIGINS=["http://localhost:3000","http://localhost:8888"]
         """
         if isinstance(v, str):
             import json

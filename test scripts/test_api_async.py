@@ -4,7 +4,7 @@ import asyncio
 import httpx
 import json
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8888"
 
 
 async def call_api(client, user_id: str):

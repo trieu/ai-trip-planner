@@ -31,7 +31,7 @@ EMBEDDING_MODEL_NAME=models/text-embedding-004
 ### 2. Restart the Server
 
 ```bash
-uvicorn main:app --reload --port 8000
+uvicorn main:app --reload --port 8888
 ```
 
 

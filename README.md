@@ -105,16 +105,16 @@ pip install -r requirements.txt
 ```bash
 # make sure you are back in the root directory of ai-trip-planner
 cd ..
-./start.sh                      # starts backend on 8000; serves minimal UI at '/'
+./start.sh                      # starts backend on 8888; serves minimal UI at '/'
 # or
-cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+cd backend && uvicorn main:app --host 0.0.0.0 --port 8888 --reload
 ```
 
 ### 5. ENDPOINTS
 
-- Frontend: http://localhost:8000/index.html
-- API: http://localhost:8000/api/v1/trips/plan
-- Docs: http://localhost:8000/docs
+- Frontend: http://localhost:8888/index.html
+- API: http://localhost:8888/api/v1/trips/plan
+- Docs: http://localhost:8888/docs
 
 Docker (optional)
 
@@ -134,9 +134,9 @@ docker-compose up --build
 
 ## Development Commands
 
-- Backend (dev): `uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
+- Backend (dev): `uvicorn main:app --host 0.0.0.0 --port 8888 --reload`
 - API smoke test: `python "test scripts"/test_api.py`
-- Synthetic evals: `python "test scripts"/synthetic_data_gen.py --base-url http://localhost:8000 --count 12`
+- Synthetic evals: `python "test scripts"/synthetic_data_gen.py --base-url http://localhost:8888 --count 12`
 
 ## API
 
@@ -193,7 +193,7 @@ Recommended: Tavily (free tier: 1000 searches/month) - https://tavily.com
 
 - **401/empty results**: Verify `OPENAI_API_KEY` or `OPENROUTER_API_KEY` in `backend/.env`
 - **No traces**: Ensure Arize credentials are set and reachable
-- **Port conflicts**: Stop existing services on 3000/8000 or change ports
+- **Port conflicts**: Stop existing services on 3000/8888 or change ports
 - **RAG not working**: Check `ENABLE_RAG=1` and `OPENAI_API_KEY` are both set
 - **Slow responses**: Web search APIs may timeout; LLM fallback will handle it
 

@@ -226,8 +226,8 @@ uvicorn main:app --reload --port 8001
 ```
 
 ### Port Configuration
-- Default port: 8000
-- Alternative if 8000 is in use: 8001
+- Default port: 8888
+- Alternative if 8888 is in use: 8001
 - Can be changed via: `--port XXXX`
 
 ## Future Improvements

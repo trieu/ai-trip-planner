@@ -44,6 +44,15 @@ def start_application():
         @master_app.get("/index.html", include_in_schema=False)
         async def serve_index():
             return FileResponse(os.path.join(settings.FRONTEND_DIR, "index.html"))
+        
+        # Serve the static files (CSS/JS) from the frontend directory
+        @master_app.get("/static/{file_path:path}", include_in_schema=False)
+        async def serve_static(file_path: str):
+            static_file_path = os.path.join(settings.FRONTEND_DIR, "static", file_path)
+            if not os.path.exists(static_file_path):
+                logger.error(f"❌ Static file not found: {static_file_path}")
+                return JSONResponse({"detail": "Static file not found"}, status_code=404)
+            return FileResponse(static_file_path)
             
         # Optional: Catch-all for SPA routing (React/Vue/Angular)
         @master_app.exception_handler(404)
@@ -60,4 +69,4 @@ def start_application():
 app = start_application()
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8888, reload=True)

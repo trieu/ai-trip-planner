@@ -7,7 +7,7 @@ Synthetic generator focused on provoking bad tool calls for demoing Arize Evals.
 - Saves a concise JSON report you can correlate with Arize traces
 
 Usage:
-  python generate_bad_tool_calls.py --base-url http://localhost:8000 --count 15 --outfile synthetic_bad_tool_calls.json
+  python generate_bad_tool_calls.py --base-url http://localhost:8888 --count 15 --outfile synthetic_bad_tool_calls.json
 """
 
 import argparse
@@ -221,7 +221,7 @@ def evaluate_tone_off(response_text: str, frustrated: bool) -> Dict[str, Any]:
 
 def main():
     parser = argparse.ArgumentParser(description="Generate synthetic requests that provoke bad tool calls.")
-    parser.add_argument("--base-url", default=os.getenv("API_BASE_URL", "http://localhost:8000"))
+    parser.add_argument("--base-url", default=os.getenv("API_BASE_URL", "http://localhost:8888"))
     parser.add_argument("--count", type=int, default=12, help="Total requests to send (scenarios are sampled)")
     parser.add_argument("--outfile", default="synthetic_bad_tool_calls.json")
     parser.add_argument("--test-rag", action="store_true", help="Include RAG-specific test scenarios")
