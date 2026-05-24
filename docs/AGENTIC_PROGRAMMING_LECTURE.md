@@ -1,14 +1,14 @@
 # 🤖 Agentic Programming with LangGraph
-## A Comprehensive Lecture for Students
+## A Self-Learning Lecture for Developers
 
 ---
 
 ## Slide 1: Course Overview
 
-### What You'll Learn Today
+### What You'll Learn
 
 - 🤖 **What is Agentic Programming?** Move beyond single LLM calls to orchestrated AI systems
-- 🗺️ **LangGraph Fundamentals**: Build directed acyclic graphs (DAGs) for agent workflows
+- 🗺️ **LangGraph Fundamentals**: Build directed state graphs for agent workflows
 - 🔄 **State Management**: How to pass data between agents without conflicts
 - ⚡ **Parallel Execution**: Speed up AI systems by running agents simultaneously
 - 🛠️ **Tool Integration**: Teach agents to call APIs, databases, and external tools
@@ -19,6 +19,35 @@
 - Python basics (functions, classes, async/await)
 - Understanding of LLM APIs (OpenAI, Gemini, etc.)
 - No LangGraph experience needed—we'll build it together!
+
+### How to Self-Study This Lecture
+
+Use this as a hands-on reading path, not just slide material:
+
+1. **Read the concept slide** to understand the pattern.
+2. **Open the linked repo file** and compare the slide with real code.
+3. **Run or inspect one node at a time** before running the full graph.
+4. **Change one small thing** after each section: add a field, add a tool call, or add a fallback.
+5. **Trace the state** by printing or logging the dict returned from each node.
+
+### Repo Files to Keep Open
+
+- `backend/core_llm/smart_trip_planner.py` — graph structure and node functions
+- `backend/core_llm/state_models.py` — LangGraph state schema
+- `backend/core_llm/prompt_builder.py` — final itinerary prompt
+- `backend/tools/travel_tools.py` — destination and budget tools
+- `backend/tools/weather_tools.py` — weather tool
+- `backend/core_llm/observer_utils.py` — tracing and observability setup
+
+### Learning Checkpoints
+
+By the end, you should be able to:
+
+- Explain why `research`, `weather`, and `budget` can run in parallel.
+- Add a new node without breaking shared state.
+- Know when to return a state update versus mutating state.
+- Debug a failed tool call without crashing the whole workflow.
+- Describe how the frontend request becomes a final itinerary.
 
 ---
 
@@ -139,10 +168,16 @@ END
 
 ### Why Parallel?
 
-- **Research** takes 2s to call web APIs
-- **Weather** takes 1s to fetch
-- **Budget** takes 1s to calculate
-- **Sequential = 4s**, **Parallel = 2s** ⚡
+- **Research** may take 2s to call RAG/web search
+- **Weather** may take 1s to fetch
+- **Budget** may take 1s to calculate
+- **Sequential fan-out = 4s**, **parallel fan-out = about 2s** ⚡
+
+The full request still includes profile loading, aggregation, and final LLM synthesis:
+
+```
+total latency ≈ load_profile + max(research, weather, budget) + aggregate + journey_plan
+```
 
 ---
 
@@ -155,7 +190,7 @@ Shared data structure passed between all nodes. Think: "the trip planning contex
 ### Trip Planner State (from `state_models.py`)
 
 ```python
-from typing import Annotated, List, Dict, Any
+from typing import Annotated, List, Dict, Any, Optional
 from typing_extensions import TypedDict
 import operator
 from langchain_core.messages import BaseMessage
@@ -188,14 +223,30 @@ class TripState(TypedDict):
 ### The `Annotated[List, operator.add]` Pattern
 
 ```python
-# Instead of overwriting:
-state["messages"] = [msg1]  # ❌ Loses previous messages
-state["messages"] += [msg2] # ❌ Manual concatenation
+# In your state model:
+messages: Annotated[List[BaseMessage], operator.add]
 
-# Use operator.add annotation:
-state["messages"] = [msg1]  # First call
-state["messages"] = [msg2]  # Automatically concatenates! → [msg1, msg2]
+# Node A returns one update:
+def node_a(state):
+    return {"messages": [msg1]}
+
+# Node B returns another update:
+def node_b(state):
+    return {"messages": [msg2]}
+
+# LangGraph applies the reducer:
+# final messages = [msg1, msg2]
 ```
+
+Important: reducers apply to **node return values**. Do not mutate `state["messages"]` in place.
+
+### Try This
+
+Open `backend/core_llm/state_models.py` and answer:
+
+- Which fields can be updated safely by multiple nodes?
+- Which fields would be overwritten if two nodes returned them at the same time?
+- Why is `tool_calls` a list reducer instead of a plain list?
 
 ---
 
@@ -233,8 +284,10 @@ class SmartTripPlanner:
 Converts the graph definition into an executable state machine that:
 - Manages state transitions
 - Parallelizes where possible
-- Handles errors
+- Validates graph structure
 - Provides trace visibility
+
+Your node code still owns runtime error handling with `try/except` and fallbacks.
 
 ---
 
@@ -274,6 +327,17 @@ load_profile ──→ research ──┐
   ├──→ weather ─────┼─→ aggregate → journey_plan → END
   └──→ budget ──────┘
 ```
+
+### Try This
+
+Open `backend/core_llm/smart_trip_planner.py` and find `_build_graph`.
+
+Then make a mental trace:
+
+1. What node runs first?
+2. What three nodes run after `load_profile`?
+3. What node waits for those three to complete?
+4. Where does the final response get written?
 
 ---
 
@@ -389,23 +453,22 @@ Gather detailed destination insights:
 ```python
 async def _research_node(self, state: TripState) -> Dict[str, Any]:
     dest = state["trip_request"]["destination"]
-    
-    # Extract user profile context
-    interests = state["user_profile"].get("current_interests", [])
+    calls = []
     
     try:
         # DIRECT TOOL CALL (no ToolNode wrapper)
         research_summary = await get_destination_info.ainvoke({
-            "location": dest,
-            "interests": interests
+            "destination": dest
+        })
+
+        calls.append({
+            "tool": "get_destination_info",
+            "args": {"destination": dest}
         })
         
         return {
             "research": research_summary,
-            "tool_calls": [{
-                "tool": "get_destination_info",
-                "args": {"location": dest, "interests": interests}
-            }]
+            "tool_calls": calls
         }
     
     except Exception as e:
@@ -420,23 +483,20 @@ async def _research_node(self, state: TripState) -> Dict[str, Any]:
 
 ```python
 # backend/tools/travel_tools.py
-from langchain.tools import tool
+from langchain_core.tools import tool
 
 @tool
-async def get_destination_info(location: str, interests: list) -> str:
+async def get_destination_info(destination: str) -> str:
     """
-    Fetch destination insights.
+    Fetch destination insights using the TravelRAGService.
     
     Args:
-        location: City or destination name
-        interests: List of user interests (food, culture, nature, etc.)
+        destination: City or destination name
     
     Returns:
         Formatted destination insights
     """
-    # Could call web search, database, RAG, or LLM
-    insights = await web_search_api(f"Best {interests} in {location}")
-    return format_insights(insights)
+    return await rag.get_destination_info(destination)
 ```
 
 ---
@@ -476,11 +536,14 @@ def _weather_node(self, state: TripState) -> Dict[str, Any]:
 
 ```python
 @tool
-def get_current_weather(location: str) -> str:
+def get_current_weather(location: str, unit: str = "celsius") -> str:
     """Get current weather for a location."""
-    # Call weather API (OpenWeatherMap, WeatherAPI, etc.)
-    weather_data = fetch_weather_api(location)
-    return f"Weather in {location}: {weather_data['temp']}°C, {weather_data['condition']}"
+    # Current repo flow:
+    # 1. Resolve coordinates
+    # 2. Call Open-Meteo
+    # 3. Return a short weather summary
+    weather_data = fetch_open_meteo(location, unit)
+    return f"Weather in {location}: {weather_data['temp']}°C"
 ```
 
 ### Key Pattern: Graceful Fallback
@@ -495,42 +558,33 @@ If tool fails → return sensible default
 
 ### Node Responsibility
 
-Break down costs across trip duration:
+Fetch or estimate travel costs for the selected budget level:
 - Accommodation
 - Food
 - Activities
 - Transportation
-- Contingency
+
+The final itinerary prompt can then turn those costs into a day-by-day plan.
 
 ### Implementation
 
 ```python
-def _budget_node(self, state: TripState) -> Dict[str, Any]:
+async def _budget_node(self, state: TripState) -> Dict[str, Any]:
     trip_req = state["trip_request"]
     destination = trip_req.get("destination")
     budget = trip_req.get("budget")
-    duration = trip_req.get("duration")
     
     try:
-        # Get real costs
-        costs = get_costs.invoke({
-            "location": destination,
-            "duration": duration,
-            "category": "budget"  # or "mid-range", "luxury"
+        costs = await get_costs.ainvoke({
+            "destination": destination,
+            "budget_level": budget
         })
         
-        # Break down total budget
-        breakdown = calculate_budget_breakdown(
-            total_budget=budget,
-            costs=costs,
-            duration=duration
-        )
-        
         return {
-            "budget": breakdown,
+            "budget": costs,
             "tool_calls": [{
                 "tool": "get_costs",
-                "args": {"location": destination, "duration": duration}
+                "args": {"destination": destination, "budget_level": budget}
             }]
         }
     
@@ -555,29 +609,20 @@ def _aggregate_node(self, state: TripState) -> Dict[str, Any]:
     # All parallel nodes have completed
     # Now we have research, weather, budget, user_profile
     
-    # Create aggregated context for final LLM call
-    aggregated_context = {
-        "research": state.get("research", ""),
-        "weather": state.get("weather", ""),
-        "budget": state.get("budget", ""),
-        "user_interests": state["user_profile"].get("current_interests", []),
-        "trip_request": state["trip_request"],
-    }
+    # This project keeps the original state fields and only cleans metadata.
+    # The journey planner reads research/weather/budget directly from state.
+    cleaned_calls = deduplicate_tool_calls(state.get("tool_calls", []))
     
-    # Log for observability
-    logger.info(f"[aggregate_node] Combined data from {len(state['tool_calls'])} tool calls")
-    
-    # Store for next node's consumption
-    return {"aggregated_context": aggregated_context}
+    return {"tool_calls": cleaned_calls}
 ```
 
 ### What Happens Here?
 
 1. ✅ Wait for all parallel nodes to finish
-2. ✅ Validate outputs (handle partial failures)
-3. ✅ Deduplicate redundant data
-4. ✅ Format for downstream consumption
-5. ✅ Pass to journey planner
+2. ✅ Receive partial fallbacks from failed nodes
+3. ✅ Deduplicate redundant tool call metadata
+4. ✅ Preserve the shared state for downstream consumption
+5. ✅ Let the journey planner read `research`, `weather`, and `budget`
 
 ---
 
@@ -591,65 +636,63 @@ Given all research, weather, budget, and profile data:
 ### Implementation
 
 ```python
-async def _journey_plan_node(self, state: TripState) -> Dict[str, Any]:
-    context = state.get("aggregated_context", {})
+def _journey_plan_node(self, state: TripState) -> Dict[str, Any]:
+    # Build a rich prompt from the full TripState
+    prompt = build_trip_planner_prompt(state)
     
-    # Build a rich prompt
-    prompt = build_trip_planner_prompt(
-        destination=context["trip_request"]["destination"],
-        duration=context["trip_request"]["duration"],
-        budget=context["budget"],
-        weather=context["weather"],
-        research=context["research"],
-        user_interests=context["user_interests"]
-    )
-    
-    # Call LLM (with tools available)
-    response = await self.llm.ainvoke([
-        SystemMessage(content=TRIP_PLANNER_SYSTEM_PROMPT),
+    # Call LLM for final synthesis
+    response = self.llm.invoke([
+        SystemMessage(content="You are a travel planner."),
         HumanMessage(content=prompt)
     ])
     
-    # Extract final plan
-    final_itinerary = parse_response(response)
-    
     return {
-        "final": final_itinerary,
-        "messages": [response]
+        "final": response.content
     }
 ```
 
 ### Prompt Template (Simplified)
 
 ```python
-def build_trip_planner_prompt(destination, duration, budget, weather, research, interests):
+def build_trip_planner_prompt(state: TripState):
+    req = state.get("trip_request", {})
+    destination = req.get("destination", "Unknown destination")
+    duration = req.get("duration", "Unknown duration")
+    budget = req.get("budget", "moderate")
+    interests = state.get("user_profile", {}).get("current_interests", [])
+    weather = state.get("weather", "Not available")
+    cost_data = state.get("budget", "Not available")
+    research_data = state.get("research", "Not available")
+
     return f"""
-    You are an expert travel planner with access to real-time data.
-    
-    User Profile:
-    - Interests: {interests}
-    
-    Trip Details:
-    - Destination: {destination}
-    - Duration: {duration}
-    - Budget: {budget}
-    
-    Research Insights:
-    {research}
-    
-    Weather Forecast:
-    {weather}
-    
+    You are a professional travel planner AI.
+
+    CRITICAL:
+    - Output MUST be in the user's preferred language
+    - NEVER mix languages
+
+    FORMAT:
+    - ONLY use: <h1>, <h2>, <ul>, <li>, <p>, <strong>, <b>, and plain text
+    - NO markdown
+
+    INPUT DATA:
+    Destination: {destination}
+    Duration: {duration}
+    Budget: {budget}
+    Interests: {interests}
+    Weather: {weather}
+
+    COST DATA:
+    {cost_data}
+
+    LOCAL RESEARCH:
+    {research_data}
+
     Now create a personalized, day-by-day itinerary that:
     1. Respects the budget constraint
     2. Aligns with user interests
     3. Adapts to weather conditions
     4. Includes hidden gems (not just tourist traps)
-    
-    Format as markdown with:
-    - Day-by-day breakdown
-    - Estimated costs
-    - Why each activity matches the user
     """
 ```
 
@@ -679,8 +722,8 @@ initial_state = {
     "tool_calls": []
 }
 
-# Run!
-result = planner.app.invoke(initial_state)
+# Run from inside an async function or notebook.
+result = await planner.app.ainvoke(initial_state)
 
 # Access outputs
 print(result["final"])          # The final itinerary
@@ -694,12 +737,33 @@ print(result["tool_calls"])     # For debugging/tracing
 ```python
 import asyncio
 
-# For async nodes
-result = await planner.app.ainvoke(initial_state)
-
-# Or use asyncio directly
-asyncio.run(planner.app.ainvoke(initial_state))
+# Or use asyncio directly from a normal Python script.
+result = asyncio.run(planner.app.ainvoke(initial_state))
 ```
+
+### Try This
+
+Create a tiny script that runs one request with:
+
+```python
+request = {
+    "destination": "Da Nang, Vietnam",
+    "duration": "3 days",
+    "budget": "moderate",
+    "interests": "food, beaches",
+    "user_id": "demo_user_001",
+}
+```
+
+Print only these fields first:
+
+```python
+print(result["research"])
+print(result["weather"])
+print(result["budget"])
+```
+
+After that works, print `result["final"]`.
 
 ---
 
@@ -718,22 +782,30 @@ Debug agentic systems by seeing:
 
 ```python
 # backend/core_llm/observer_utils.py
-from phoenix.trace import get_tracer
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from openinference.instrumentation.langchain import LangChainInstrumentor
+from openinference.instrumentation import using_attributes
 
 def setup_observability():
-    tracer = get_tracer()
-    # Automatically traces LLM calls, tool calls, spans
-    return tracer
+    endpoint = Settings().PHOENIX_COLLECTOR_ENDPOINT
+    if not endpoint:
+        return
+
+    tracer_provider = TracerProvider()
+    tracer_provider.add_span_processor(
+        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+    )
+    trace.set_tracer_provider(tracer_provider)
+
+    # Automatically traces LangChain model/tool calls.
+    LangChainInstrumentor().instrument()
 
 def safe_attributes(attributes: dict):
     """Context manager for adding custom span attributes."""
-    @contextmanager
-    def _context():
-        span = get_span()
-        for key, value in attributes.items():
-            span.set_attribute(key, value)
-        yield
-    return _context()
+    return using_attributes(attributes=attributes)
 ```
 
 ### Usage in Nodes
@@ -782,7 +854,7 @@ async def _research_node(self, state: TripState) -> Dict[str, Any]:
     
     try:
         # Try primary tool
-        research = await get_destination_info.ainvoke({"location": dest})
+        research = await get_destination_info.ainvoke({"destination": dest})
     
     except TimeoutError:
         logger.warning(f"Web search timeout for {dest}, using LLM fallback")
@@ -1169,18 +1241,16 @@ def get_weather(location: str, units: str = "celsius") -> str:
 ### Registering Tools with LLM
 
 ```python
-from langchain_core.tools import ToolCollection
-
 tools = [
     get_weather,
     get_destination_info,
     get_costs,
 ]
 
-# With Claude
-from langchain_anthropic import ChatAnthropic
+# With OpenAI
+from langchain_openai import ChatOpenAI
 
-llm = ChatAnthropic(model="claude-3-opus-20240229")
+llm = ChatOpenAI(model="gpt-4o")
 llm_with_tools = llm.bind_tools(tools)
 ```
 
@@ -1200,7 +1270,7 @@ def _weather_node(self, state: TripState) -> Dict[str, Any]:
 
 ```python
 async def _research_node(self, state: TripState) -> Dict[str, Any]:
-    result = await get_destination_info.ainvoke({"location": "Tokyo"})
+    result = await get_destination_info.ainvoke({"destination": "Tokyo"})
     return {"research": result}
 ```
 
@@ -1307,49 +1377,40 @@ Format as a table with USD, local currency, and percentage breakdowns.
 ```python
 # backend/core_llm/meta_llm.py
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 class MetaLLM:
     @staticmethod
     def get_llm(temperature: float = 0.7):
-        provider = os.getenv("LLM_PROVIDER", "openai").lower()
+        provider = os.getenv("LLM_PROVIDER", "GOOGLE_GEMINI").upper()
+        model_name = os.getenv("LLM_MODEL_NAME")
         
-        if provider == "openai":
+        if provider == "OPENAI":
             return ChatOpenAI(
-                model="gpt-4-turbo",
+                model=model_name or "gpt-4o",
                 temperature=temperature,
                 api_key=os.getenv("OPENAI_API_KEY")
             )
         
-        elif provider == "anthropic":
-            return ChatAnthropic(
-                model="claude-3-opus-20240229",
-                temperature=temperature,
-                api_key=os.getenv("ANTHROPIC_API_KEY")
-            )
-        
-        elif provider == "google":
-            return ChatGoogleGenerativeAI(
-                model="gemini-1.5-pro",
-                temperature=temperature,
-                api_key=os.getenv("GOOGLE_API_KEY")
-            )
-        
         else:
-            raise ValueError(f"Unknown provider: {provider}")
+            return ChatGoogleGenerativeAI(
+                model=model_name or "gemini-2.5-flash-lite",
+                temperature=temperature,
+                api_key=os.getenv("GOOGLE_GEMINI_API_KEY")
+            )
 ```
 
 ### Usage
 
 ```bash
 # Swap provider with env var, no code change
-export LLM_PROVIDER=anthropic
+export LLM_PROVIDER=OPENAI
+export LLM_MODEL_NAME=gpt-4o
 python -m uvicorn main:app --reload
 
-# Or
-export LLM_PROVIDER=google
-python -m uvicorn main:app --reload
+# Or use the default Gemini path:
+export LLM_PROVIDER=GOOGLE_GEMINI
+export LLM_MODEL_NAME=gemini-2.5-flash-lite
 ```
 
 ---
@@ -1477,9 +1538,10 @@ TripPlanner Execution Timeline:
 
 ```python
 # 1. Cache LLM responses
-from langchain.cache import InMemoryCache, RedisCache
+from langchain.globals import set_llm_cache
+from langchain_redis import RedisCache
 
-llm.cache = RedisCache()  # Avoid re-running same query
+set_llm_cache(RedisCache(redis_url="redis://localhost:6379"))
 
 # 2. Parallel LLM calls
 async def _optimized_research_node(self, state):
@@ -1488,7 +1550,7 @@ async def _optimized_research_node(self, state):
     
     # Fetch multiple sources in parallel
     results = await asyncio.gather(
-        get_destination_info.ainvoke({"location": dest}),
+        get_destination_info.ainvoke({"destination": dest}),
         web_search.ainvoke({"query": f"hidden gems {dest}"}),
         rag_service.retrieve.ainvoke({"destination": dest, "interests": interests})
     )
@@ -1496,8 +1558,8 @@ async def _optimized_research_node(self, state):
     return {"research": merge_results(results)}
 
 # 3. Use smaller models for fast paths
-lightweight_llm = ChatOpenAI(model="gpt-3.5-turbo")  # Fast & cheap
-heavyweight_llm = ChatOpenAI(model="gpt-4-turbo")    # Slow & expensive
+lightweight_llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite")
+heavyweight_llm = ChatOpenAI(model="gpt-4o")
 ```
 
 ---
@@ -1936,7 +1998,7 @@ builder.add_conditional_edges(
 
 ### Resources
 
-- 📚 [LangGraph Documentation](https://python.langchain.com/docs/langgraph)
+- 📚 [LangGraph Documentation](https://docs.langchain.com/oss/python/langgraph)
 - 🔗 [AI Trip Planner Repo](https://github.com/trieu/ai-trip-planner)
 - 🧪 [Backend Tests](backend/tests/)
 - 📊 [Arize Phoenix Observability](https://phoenix.arize.com/)
@@ -1963,9 +2025,11 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END, START
 from core_llm.state_models import TripState
 from core_llm.meta_llm import MetaLLM
+from core_llm.prompt_builder import build_trip_planner_prompt
 from services import DataServiceFactory
 from tools.travel_tools import get_destination_info, get_costs
 from tools.weather_tools import get_current_weather
+from tools.text_utils import deduplicate_tool_calls
 
 logger = logging.getLogger(__name__)
 
@@ -2011,12 +2075,10 @@ class SmartTripPlanner:
     
     async def _research_node(self, state: TripState) -> Dict[str, Any]:
         dest = state["trip_request"]["destination"]
-        interests = state["user_profile"].get("current_interests", [])
         
         try:
             summary = await get_destination_info.ainvoke({
-                "location": dest,
-                "interests": interests
+                "destination": dest
             })
         except Exception as e:
             logger.error(f"Research failed: {e}")
@@ -2024,7 +2086,7 @@ class SmartTripPlanner:
         
         return {
             "research": summary,
-            "tool_calls": [{"tool": "get_destination_info", "args": {"location": dest}}]
+            "tool_calls": [{"tool": "get_destination_info", "args": {"destination": dest}}]
         }
     
     def _weather_node(self, state: TripState) -> Dict[str, Any]:
@@ -2041,56 +2103,42 @@ class SmartTripPlanner:
             "tool_calls": [{"tool": "get_current_weather", "args": {"location": dest}}]
         }
     
-    def _budget_node(self, state: TripState) -> Dict[str, Any]:
+    async def _budget_node(self, state: TripState) -> Dict[str, Any]:
         dest = state["trip_request"]["destination"]
-        duration = state["trip_request"].get("duration", "7 days")
-        budget = state["trip_request"].get("budget", "$1000")
+        budget_level = state["trip_request"].get("budget", "moderate")
         
         try:
-            costs = get_costs.invoke({"location": dest, "duration": duration})
+            costs = await get_costs.ainvoke({
+                "destination": dest,
+                "budget_level": budget_level
+            })
         except Exception as e:
             logger.error(f"Budget failed: {e}")
             costs = "Cost analysis unavailable"
         
         return {
             "budget": costs,
-            "tool_calls": [{"tool": "get_costs", "args": {"location": dest}}]
+            "tool_calls": [{
+                "tool": "get_costs",
+                "args": {"destination": dest, "budget_level": budget_level}
+            }]
         }
     
     def _aggregate_node(self, state: TripState) -> Dict[str, Any]:
-        # Combine all parallel outputs
-        return {
-            "aggregated_context": {
-                "destination": state["trip_request"]["destination"],
-                "research": state.get("research", ""),
-                "weather": state.get("weather", ""),
-                "budget": state.get("budget", ""),
-                "interests": state["user_profile"].get("current_interests", [])
-            }
-        }
+        # Combine all parallel outputs by cleaning metadata.
+        # The journey planner reads research/weather/budget directly from state.
+        return {"tool_calls": deduplicate_tool_calls(state.get("tool_calls", []))}
     
-    async def _journey_plan_node(self, state: TripState) -> Dict[str, Any]:
-        context = state.get("aggregated_context", {})
+    def _journey_plan_node(self, state: TripState) -> Dict[str, Any]:
+        prompt = build_trip_planner_prompt(state)
         
-        prompt = f"""
-        Create a personalized itinerary for {context['destination']}.
-        
-        Research: {context['research']}
-        Weather: {context['weather']}
-        Budget: {context['budget']}
-        Interests: {', '.join(context['interests'])}
-        
-        Format as a day-by-day plan with timings and costs.
-        """
-        
-        response = await self.llm.ainvoke([
-            SystemMessage("You are a world-class travel planner."),
+        response = self.llm.invoke([
+            SystemMessage(content="You are a travel planner."),
             HumanMessage(prompt)
         ])
         
         return {
-            "final": response.content,
-            "messages": [response]
+            "final": response.content
         }
     
     async def plan(self, trip_request: Dict[str, Any]) -> Dict[str, Any]:
