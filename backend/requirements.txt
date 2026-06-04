@@ -1,5 +1,4 @@
 # This file lists the dependencies for the backend of the AI Trip Planner application.
-# It includes core libraries for building the API, handling authentication, interacting with LLMs,
 
 #  FASTAPI for building the web API
 #  HTTPX for making async HTTP requests to external services
@@ -29,6 +28,7 @@ langgraph>=1.1.8
 langchain-google-genai>=4.2.2
 langchain-openai>=1.2.1
 tavily-python>=0.7.23
+google-genai>=2.0.1
 
 # Observability
 arize-phoenix
@@ -49,8 +49,8 @@ alembic>=1.18.0 # Database Migrations
 # Cache
 redis[hiredis]>= 6.0.0
 
-# Distributed task queue with Redis as broker, for async jobs: embeddings, campaign execution, batch processing
-dramatiq[redis, watch]
+dramatiq[redis, watch] # Distributed task queue with Redis as broker, for async jobs: embeddings, batch processing
+scrapling[fetchers]  # For web scraping tasks, if needed for data collection or enrichment
 
 # Development & Testing
 pytest>=7.4.3
