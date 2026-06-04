@@ -3,8 +3,20 @@
 
 from scrapling.fetchers import Fetcher, AsyncFetcher, StealthyFetcher, DynamicFetcher
 
-page = StealthyFetcher.fetch('https://vnexpress.net/sinh-vien-hao-hung-voi-ai-nhung-thay-bat-dinh-ve-tuong-lai-5078703.html')
+#page = StealthyFetcher.fetch('https://vnexpress.net/sinh-vien-hao-hung-voi-ai-nhung-thay-bat-dinh-ve-tuong-lai-5078703.html')
+
+#print(page.status)
+#print(page.cookies)
+#print(page.find('article').get_all_text()[:1000])  # Print the first 1000 characters of the page content 
+
+
+
+
+page = DynamicFetcher.fetch(
+    "https://www.facebook.com/dataism.one",
+    timeout=60000,
+    network_idle=True,
+)
 
 print(page.status)
-print(page.cookies)
-print(page.find('article').get_all_text()[:1000])  # Print the first 1000 characters of the page content 
+print(page.get_all_text()[:3000])
