@@ -1,9 +1,8 @@
 import os
-from sys import prefix
 from typing import Literal, Optional
 from functools import lru_cache
 
-from dotenv import find_dotenv, load_dotenv
+from dotenv import load_dotenv
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,7 +10,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # ================================
 # Environment Setup
 # ================================
-load_dotenv(find_dotenv(), override=True)
+ENV_FILE_VARIABLE = "APP_ENV_FILE"
+DEFAULT_ENV_FILE = ".env"
+
+
+def get_env_file() -> str:
+    """Return the dotenv file path selected for Settings."""
+    return os.getenv(ENV_FILE_VARIABLE, DEFAULT_ENV_FILE)
+
+
+load_dotenv(get_env_file(), override=True)
 
 # Utility function to ensure required env variables are present
 def require_env(key: str, default_value : str = None) -> str:
@@ -60,7 +68,7 @@ class Settings(BaseSettings):
     # Pydantic v2 Config
     # ========================================
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=get_env_file(),
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="allow",

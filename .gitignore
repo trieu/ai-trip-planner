@@ -93,3 +93,4 @@ backend/archive/
 
 backend/__pycache__
 backend/.env
+backend/test.env
