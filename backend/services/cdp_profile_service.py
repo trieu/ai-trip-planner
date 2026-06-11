@@ -65,16 +65,18 @@ class PostgresProfileService:
         )
         VALUES (
             :tenant_id, :profile_id,
-            :identities,
-            :primary_email, :secondary_emails,
-            :primary_phone, :secondary_phones,
+            
+            -- Explicit JSONB casting added here to support asyncpg string payload injections
+            :identities::jsonb,
+            :primary_email, :secondary_emails::jsonb,
+            :primary_phone, :secondary_phones::jsonb,
             :first_name, :last_name,
             :living_location, :living_country, :living_city,
-            :job_titles, :data_labels, :content_keywords,
-            :media_channels, :behavioral_events,
-            :segments, :journey_maps,
-            :event_statistics, :top_engaged_touchpoints,
-            :ext_data,
+            :job_titles::jsonb, :data_labels::jsonb, :content_keywords::jsonb,
+            :media_channels::jsonb, :behavioral_events::jsonb,
+            :segments::jsonb, :journey_maps::jsonb,
+            :event_statistics::jsonb, :top_engaged_touchpoints::jsonb,
+            :ext_data::jsonb,
             NOW()
         )
         ON CONFLICT (tenant_id, profile_id)

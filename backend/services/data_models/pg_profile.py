@@ -3,7 +3,7 @@ import re
 import uuid
 import logging
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, EmailStr, Field, field_validator, TypeAdapter
+from pydantic import BaseModel, EmailStr, Field, field_validator, TypeAdapter   
 import json
 
 # ---------------------------------------------------------------------

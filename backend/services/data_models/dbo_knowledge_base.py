@@ -15,8 +15,6 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB, BYTEA
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pgvector.sqlalchemy import Vector  # NOTE: still used as logical type
-
-from config import Settings
 from services.data_models.dbo_base import Base, get_default_tenant_id
 
 

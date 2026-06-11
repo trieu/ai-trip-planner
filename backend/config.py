@@ -22,7 +22,7 @@ def get_env_file() -> str:
 load_dotenv(get_env_file(), override=True)
 
 # Utility function to ensure required env variables are present
-def require_env(key: str, default_value : str = None) -> str:
+def require_env(key: str, default_value: str = None) -> str:
     '''Get an environment variable or raise an error if it's missing.'''
     value = os.getenv(key)
     if not value:
@@ -38,7 +38,7 @@ def build_pg_dsn(prefix: str = "PGSQL_DB") -> str:
     """ Build PostgreSQL DSN for asyncpg driver from environment variables.
 
     Args:
-        prefix (str, optional): . Defaults to "PGSQL_DB".
+        prefix (str, optional): Defaults to "PGSQL_DB".
 
     Returns:
         str: PGSQL DSN string for asyncpg driver, e.g.:
@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     # ========================================
     HOST: str = "0.0.0.0"
     PORT: int = 8888
+    PHOENIX_PORT: int = 6006
     WORKERS: int = 4
     FRONTEND_DIR: str = "../frontend"
     API_PREFIX: str = "/api"
@@ -125,16 +126,40 @@ class Settings(BaseSettings):
     # ========================================
     # PROFILE 
     # ========================================
-    PROFILE_SOURCE: Literal["LEO_CDP", "POSTGRES", "MOCK_DATA"] = "MOCK_DATA"
+    PROFILE_SOURCE: Literal["LEO_CDP", "POSTGRES", "MOCK_DATA", "ARANGO"] = "MOCK_DATA"
 
     # ========================================
-    # DATABASE CONFIGURATION
+    # LEO CDP
+    # ========================================
+    LEO_API_KEY: Optional[str] = None
+    LEO_API_VALUE: Optional[str] = None
+    LEO_BASE_URL: Optional[str] = None
+
+    # ========================================
+    # DATABASE CONFIGURATION (PostgreSQL)
     # ========================================
     PGSQL_DB_HOST: Optional[str] = "localhost"
     PGSQL_DB_PORT: int = 5432
     PGSQL_DB_NAME: Optional[str] = None
     PGSQL_DB_USER: Optional[str] = None
     PGSQL_DB_PASSWORD: Optional[str] = None
+
+    # ========================================
+    # ARANGO DATABASE CONFIGURATION
+    # ========================================
+    ARANGO_HOST: Optional[str] = "http://localhost:8529"
+    ARANGO_DB: Optional[str] = "leo_cdp_source"
+    ARANGO_USER: Optional[str] = "root"
+    ARANGO_PASSWORD: Optional[str] = None
+
+    # ========================================
+    # DRAMATIQ BROKER SETTINGS
+    # ========================================
+    DRAMATIQ_REDIS_URL: Optional[str] = "redis://localhost:6379/1"
+
+    # Cron schedule for the profile synchronization task. 
+    # Defaults to running daily at 2:00 AM ("0 2 * * *").
+    DRAMATIQ_SYNC_PROFILES_CRON: str = "0 2 * * *"
 
     # ========================================
     # REDIS
@@ -151,6 +176,17 @@ class Settings(BaseSettings):
     PHOENIX_COLLECTOR_ENDPOINT: Optional[str] = "http://localhost:6006/v1/traces"
     OTEL_SERVICE_NAME: str = "ai-trip-planner-api"
     OTEL_EXPORTER_OTLP_TIMEOUT: int = Field(10, ge=1)
+
+    # ========================================
+    # SSO / AUTHENTICATION (Optional)
+    # ========================================
+    SSO_PROVIDER: Optional[str] = None
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    FACEBOOK_APP_ID: Optional[str] = None
+    FACEBOOK_APP_SECRET: Optional[str] = None
+    GITHUB_CLIENT_ID: Optional[str] = None
+    GITHUB_CLIENT_SECRET: Optional[str] = None
 
     # ========================================
     # CORS
@@ -182,8 +218,9 @@ class Settings(BaseSettings):
         if len(v) < 32:
             raise ValueError("❌ JWT_SECRET must be at least 32 characters long")
 
-        if v == "super-secret-key-change-this" and os.getenv("ENVIRONMENT") == "production":
-            raise ValueError("❌ JWT_SECRET must be changed in production")
+        # Basic check to ensure a default or weak secret isn't used in production
+        if ("change-this" in v or v == "super-secret-key") and os.getenv("ENVIRONMENT") == "production":
+            raise ValueError("❌ JWT_SECRET must be securely changed in production")
 
         return v
 
@@ -243,7 +280,7 @@ class Settings(BaseSettings):
             return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
     
-        # ========================================
+    # ========================================
     # Debug Information
     # ========================================
 
@@ -255,7 +292,9 @@ class Settings(BaseSettings):
         sensitive_keys = [
             "JWT_SECRET", "OPENAI_API_KEY", "GOOGLE_GEMINI_API_KEY",
             "ANTHROPIC_API_KEY", "TAVILY_API_KEY", "REDIS_PASSWORD",
-            "PGSQL_DB_PASSWORD", "LEO_API_KEY"
+            "PGSQL_DB_PASSWORD", "LEO_API_KEY", "LEO_API_VALUE",
+            "ARANGO_PASSWORD", "GOOGLE_CLIENT_SECRET", "FACEBOOK_APP_SECRET",
+            "GITHUB_CLIENT_SECRET"
         ]
         
         for key in sensitive_keys:
