@@ -45,11 +45,11 @@ psycopg[binary] # Synchronous driver for PostgreSQL
 pgvector # For vector search capabilities in PostgreSQL
 python-arango # ArangoDB driver to connect LEO CDP directly
 alembic>=1.18.0 # Database Migrations
+redis[hiredis]>= 6.0.0 # Redis client for asynchronous operations
 
-# Cache
-redis[hiredis]>= 6.0.0
-
-dramatiq[redis, watch] # Distributed task queue with Redis as broker, for async jobs: embeddings, batch processing
+ # Distributed task queue with Redis as broker, for async jobs: embeddings, batch processing
+dramatiq[redis, watch]
+periodiq # 
 scrapling[fetchers]  # For web scraping tasks, if needed for data collection or enrichment
 
 # Development & Testing

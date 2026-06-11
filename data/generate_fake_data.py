@@ -15,6 +15,7 @@ Features
 - CLV simulation
 - Campaign attribution
 - Customer 360 profile generation
+- Segment assignment (inSegments)
 
 Usage
 -----
@@ -56,44 +57,20 @@ KEY_CHARS = (
 )
 
 FIRST_NAMES = [
-    "An",
-    "Minh",
-    "Linh",
-    "Trang",
-    "Nam",
-    "Vy",
-    "Khanh",
-    "Long",
-    "Phuong",
-    "Huy",
-    "Quynh",
-    "Thanh",
-    "Bao",
-    "Ngoc",
-    "Tuan"
+    "An", "Minh", "Linh", "Trang", "Nam", 
+    "Vy", "Khanh", "Long", "Phuong", "Huy", 
+    "Quynh", "Thanh", "Bao", "Ngoc", "Tuan"
 ]
 
 CITIES = [
-    "Ha Noi",
-    "Ho Chi Minh City",
-    "Da Nang",
-    "Can Tho",
-    "Hai Phong"
+    "Ha Noi", "Ho Chi Minh City", "Da Nang", 
+    "Can Tho", "Hai Phong"
 ]
 
 DESTINATIONS = [
-    "Tokyo",
-    "Osaka",
-    "Kyoto",
-    "Seoul",
-    "Bangkok",
-    "Singapore",
-    "Bali",
-    "Phu Quoc",
-    "Paris",
-    "London",
-    "Dubai",
-    "Hong Kong"
+    "Tokyo", "Osaka", "Kyoto", "Seoul", "Bangkok", 
+    "Singapore", "Bali", "Phu Quoc", "Paris", 
+    "London", "Dubai", "Hong Kong"
 ]
 
 TRAVEL_QUERIES = [
@@ -146,6 +123,18 @@ TOUCHPOINTS = [
         "url": "https://travel.demo.ai/guides"
     }
 ]
+
+# Hardcoded static Segment mapping for consistent assignment across the profiles
+SEGMENT_METADATA = {
+    "visitor": {"id": "3sbeyPZV9WEKO9UaNiWtAC", "name": "Active Visitor Profile"},
+    "researcher": {"id": "4TcYkQwA1BXJN8VbOjZuBD", "name": "Travel Researcher Profile"},
+    "traveler": {"id": "5UdzLrXB2CYKO9WcPkXvCE", "name": "Active Traveler Profile"},
+    "loyalty": {"id": "6VfaMsYC3DZLP0XdQlYwDF", "name": "Loyalty Member Profile"},
+    "vip": {"id": "7WgbNtZD4EAMQ1YeRmZxE0", "name": "VIP Customer Profile"}
+}
+
+ALL_DATA_SEGMENT = {"id": "2hnvPPd0z1YtqfR7wLTeRi", "name": "All data"}
+
 
 TEMPLATE = {
     "activationTimeline": {},
@@ -431,6 +420,29 @@ def generate_profile(
 
     touchpoint = generate_touchpoint()
 
+    # Get segment specific metadata to fill the JSON scheme
+    segment_info = SEGMENT_METADATA[segment.value]
+    
+    # Generate the requested inSegments payload
+    in_segments_payload = [
+        {
+            "id": segment_info["id"],
+            "indexScore": random.randint(1, 100),
+            "lastDataSynch": 0,
+            "name": segment_info["name"],
+            "queryHashedId": "",
+            "type": ""
+        },
+        {
+            "id": ALL_DATA_SEGMENT["id"],
+            "indexScore": random.randint(1, 100),
+            "lastDataSynch": 0,
+            "name": ALL_DATA_SEGMENT["name"],
+            "queryHashedId": "",
+            "type": ""
+        }
+    ]
+
     p.update({
 
         "_key":
@@ -503,6 +515,14 @@ def generate_profile(
                 f"visitor:{visitor};"
                 f"email:{email}"
             ),
+            
+        # Updated to assign the constructed scheme directly to the profile object
+        "inSegments": 
+            in_segments_payload,
+            
+        # Optional: updating the standard stringified version of the arrays
+        "inSegmentsAsStr":
+            f"{segment_info['id']};{ALL_DATA_SEGMENT['id']}",
 
         "behavioralEvents":
             random.sample(
