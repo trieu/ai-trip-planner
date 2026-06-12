@@ -157,15 +157,18 @@ lsof -ti :$PORT | xargs kill -9 2>/dev/null || true
 lsof -ti :$PHOENIX_PORT | xargs kill -9 2>/dev/null || true
 
 # ==========================================================
-# 7. Ensure logs directory exists
-# Creates a local folder to store our timestamped log files 
-# if it doesn't already exist.
+# 7. Ensure logs directory exists and clean old logs
 # ==========================================================
-if [ ! -d "logs" ]; then
-  mkdir "logs"
-  echo "✅ Created 'logs' directory"
+if [ -d "logs" ]; then
+  echo "🧹 Removing old log files..."
+
+  find logs -type f -name "*.log" -delete
+  find logs -type f -name "*.txt" -delete
+
+  echo "✅ Old log files removed"
 else
-  echo "ℹ️  'logs' directory already exists"
+  mkdir -p logs
+  echo "✅ Created 'logs' directory"
 fi
 
 # ==========================================================

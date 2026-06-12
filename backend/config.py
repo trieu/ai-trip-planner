@@ -2,6 +2,7 @@ import os
 from typing import Literal, Optional
 from functools import lru_cache
 
+import re
 from dotenv import load_dotenv
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -215,12 +216,25 @@ class Settings(BaseSettings):
     @field_validator("JWT_SECRET")
     @classmethod
     def validate_jwt_secret(cls, v: str) -> str:
+        """
+        Validates JWT_SECRET for length, complexity, and production safety.
+        """
+        # 1. Length check
         if len(v) < 32:
-            raise ValueError("❌ JWT_SECRET must be at least 32 characters long")
+            raise ValueError("❌ JWT_SECRET must be at least 32 characters long.")
 
-        # Basic check to ensure a default or weak secret isn't used in production
-        if ("change-this" in v or v == "super-secret-key") and os.getenv("ENVIRONMENT") == "production":
-            raise ValueError("❌ JWT_SECRET must be securely changed in production")
+        # 2. Production safety check
+        # Avoid placeholder secrets in production
+        is_prod = os.getenv("ENVIRONMENT", "").lower() == "production"
+        insecure_values = ["change-this", "super-secret-key", "123456789", "password"]
+        
+        if is_prod and any(bad in v.lower() for bad in insecure_values):
+            raise ValueError("❌ JWT_SECRET is insecure; change it before running in production.")
+
+        # 3. Complexity check: Prevent simple repeated patterns (e.g., 'aaaaaaaaaaa...')
+        # This regex checks if a character is repeated 8+ times consecutively
+        if re.search(r"(.)\1{7,}", v):
+            raise ValueError("❌ JWT_SECRET is too simple (contains repeating characters).")
 
         return v
 
