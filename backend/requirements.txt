@@ -47,10 +47,15 @@ python-arango # ArangoDB driver to connect LEO CDP directly
 alembic>=1.18.0 # Database Migrations
 redis[hiredis]>= 6.0.0 # Redis client for asynchronous operations
 
- # Distributed task queue with Redis as broker, for async jobs: embeddings, batch processing
+# Distributed task queue with Redis as broker, for async jobs: embeddings, batch processing
 dramatiq[redis, watch]
 periodiq # 
 scrapling[fetchers]  # For web scraping tasks, if needed for data collection or enrichment
+
+# Web scraping and HTML parsing
+ebooklib
+beautifulsoup4
+markdownify
 
 # Development & Testing
 pytest>=7.4.3

@@ -9,6 +9,7 @@
 CONTAINER_NAME="pgsql16_vector_age" # Updated name to reflect AGE
 VLAN_NAME="leo-vlan"
 DATA_VOLUME="pgdata_vector_age"
+IMAGE_NAME="postgis/postgis:16-3.5"
 
 # --- POSTGRES config ---
 POSTGRES_USER="postgres"
@@ -24,11 +25,25 @@ SQL_FILE_PATH="./database/knowledge_schema.sql"
 
 # --- Parse options ---
 RESET_DB=false
+RESET_ALL=false
 for arg in "$@"; do
-  case $arg in
+  case "$arg" in
     --reset-db)
       RESET_DB=true
-      shift
+      ;;
+    --reset-all)
+      RESET_ALL=true
+      ;;
+    -h|--help)
+      echo "Usage: ./start_pgsql.sh [--reset-db] [--reset-all]"
+      echo "  --reset-db   Drop the target database but keep the container/volume"
+      echo "  --reset-all  Remove the container, Docker volume, and base image, then rebuild from scratch"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $arg"
+      echo "Usage: ./start_pgsql.sh [--reset-db] [--reset-all]"
+      exit 1
       ;;
   esac
 done
@@ -37,36 +52,22 @@ done
 # Helper: wait for PostgreSQL
 # ============================================================
 wait_for_postgres() {
-  local max_attempts=15
+  local max_attempts=30
   local attempt=1
   echo "⏳ Waiting for PostgreSQL..."
   until docker exec -u postgres "$CONTAINER_NAME" psql -d "$DEFAULT_DB" -c "SELECT 1;" >/dev/null 2>&1; do
-    if [ $attempt -ge $max_attempts ]; then
+    if [ "$attempt" -ge "$max_attempts" ]; then
       echo "❌ PostgreSQL not ready"
-      exit 1
+      return 1
     fi
     sleep 3
     ((attempt++))
   done
   echo "🟢 PostgreSQL ready."
+  return 0
 }
 
-# ============================================================
-# Start or create container
-# ============================================================
-# Ensure network exists
-docker network inspect "$VLAN_NAME" >/dev/null 2>&1 || docker network create "$VLAN_NAME"
-
-if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-  if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-    echo "🔄 Starting existing container..."
-    docker start "$CONTAINER_NAME"
-    wait_for_postgres
-  else
-    echo "🟢 Container already running."
-    wait_for_postgres
-  fi
-else
+create_fresh_container() {
   echo "🚀 Creating new container..."
   docker volume create "$DATA_VOLUME" >/dev/null 2>&1
 
@@ -79,9 +80,47 @@ else
     -e POSTGRES_DB="$DEFAULT_DB" \
     -p "$HOST_PORT:5432" \
     -v "$DATA_VOLUME:/var/lib/postgresql/data" \
-    postgis/postgis:16-3.5
-    
-  wait_for_postgres
+    "$IMAGE_NAME"
+
+  wait_for_postgres || {
+    echo "❌ PostgreSQL did not become ready after container creation."
+    exit 1
+  }
+}
+
+# ============================================================
+# Start or create container
+# ============================================================
+if [ "$RESET_ALL" = true ]; then
+  echo "⚠️ Full Docker reset requested. Removing container, volume, image, and network..."
+  docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+  docker volume rm "$DATA_VOLUME" >/dev/null 2>&1 || true
+  docker rmi "$IMAGE_NAME" >/dev/null 2>&1 || true
+  docker network rm "$VLAN_NAME" >/dev/null 2>&1 || true
+fi
+
+# Ensure network exists
+docker network inspect "$VLAN_NAME" >/dev/null 2>&1 || docker network create "$VLAN_NAME"
+
+if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+  if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    if docker logs "$CONTAINER_NAME" 2>&1 | grep -q 'could not access file "age"'; then
+      echo "⚠️ Detected stale AGE preload configuration from a previous failed start. Resetting PostgreSQL container..."
+      docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+      docker volume rm "$DATA_VOLUME" >/dev/null 2>&1 || true
+      create_fresh_container
+    else
+      echo "🔄 Starting existing container..."
+      docker start "$CONTAINER_NAME"
+      wait_for_postgres || exit 1
+    fi
+  else
+    echo "🟢 Container already running."
+    wait_for_postgres || exit 1
+  fi
+else
+  create_fresh_container
+fi
 
   # ============================================================
   # Install pgvector AND Apache AGE
@@ -99,8 +138,13 @@ else
   
   echo "🔄 Restarting container to apply configuration..."
   docker restart "$CONTAINER_NAME"
-  wait_for_postgres
-fi
+
+  if ! wait_for_postgres; then
+    echo "⚠️ AGE preload configuration did not recover. Resetting PostgreSQL container and recreating the database volume..."
+    docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+    docker volume rm "$DATA_VOLUME" >/dev/null 2>&1 || true
+    create_fresh_container
+  fi
 
 # ============================================================
 # Fix collation mismatches (Docker + Debian issue)
