@@ -56,6 +56,10 @@ scrapling[fetchers]  # For web scraping tasks, if needed for data collection or 
 ebooklib
 beautifulsoup4
 markdownify
+markdown2[all]
+
+# Cloud Storage and Services
+boto3
 
 # Development & Testing
 pytest>=7.4.3
